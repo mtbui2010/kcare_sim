@@ -1,0 +1,15 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% One control step at 30 Hz (dataset rate); physics runs 17 substeps inside it.
+\begin{tikzpicture}[node distance=8mm and 10mm]
+  \node[data=34mm] (obs) {Quan sát $o_t$\\\scriptsize ảnh đầu + ảnh tay (848×480)\\trạng thái 8-D};
+  \node[blk=34mm, right=of obs] (pol) {Policy\\\scriptsize expert (IK) \textit{hoặc} VLA};
+  \node[data=34mm, right=of pol] (act) {Hành động $a_t$\\\scriptsize 7 góc khớp + độ mở gripper};
+  \node[sim=40mm, below=of act] (ctrl) {Actuator vị trí\\\scriptsize $\tau = k_p(q^\ast - q) - k_d\,\dot q$ \\+ bù trọng lực};
+  \node[sim=40mm, left=of ctrl] (phys) {Vật lý MuJoCo\\\scriptsize 17 bước $\times$ 1.96 ms = 1/30 s\\va chạm, ma sát};
+  \node[sim=30mm, left=of phys] (cam) {Render camera};
+  \draw[arr] (obs) -- (pol); \draw[arr] (pol) -- (act); \draw[arr] (act) -- (ctrl);
+  \draw[arr] (ctrl) -- (phys); \draw[arr] (phys) -- (cam); \draw[arr] (cam) -- (obs);
+\end{tikzpicture}
+\end{document}

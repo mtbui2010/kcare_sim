@@ -1,0 +1,60 @@
+# Randomization around the REAL scene (office room, A_real cabinet, real cameras).
+# Used with task scene: office. See randomization.yaml for the generic one.
+# Ranges are uniform [lo, hi] unless noted. Placement offsets are relative to
+# the nominal ready-pose placement in task_open_drawer.yaml.
+
+placement:
+  yaw_deg: [-5, 5]           # cabinet turned about z
+  lateral: [-0.05, 0.05]     # along the cabinet front [m]
+  depth: [-0.05, 0.05]       # toward / away from the robot [m]
+drawer0: [0.0, 0.02]         # target drawer already slightly open [m]
+
+head_jitter_deg:             # around the real pose (pan -70, tilt -41): diverse head views
+  pan: [-10, 10]             # -80 .. -60 deg
+  tilt: [-11, 9]             # -52 .. -32 deg  (kcare 'down' -50, 'straight' -40)
+
+# carcass colour families (RGB 0..1); each episode picks one and jitters it
+cabinet_palettes:
+  white:      [0.93, 0.92, 0.88]
+  cream:      [0.90, 0.85, 0.74]
+  light_gray: [0.75, 0.76, 0.78]
+  light_wood: [0.78, 0.62, 0.45]
+  dark_wood:  [0.45, 0.32, 0.22]
+  dark_gray:  [0.32, 0.34, 0.37]
+color_jitter: 0.05
+front_delta: [-0.04, 0.06]   # drawer fronts slightly lighter/darker than the carcass
+handle_gray: [0.40, 0.72]    # "gray handle"
+
+floor_palettes:
+  gray:  [[0.55, 0.55, 0.52], [0.48, 0.48, 0.45]]
+  beige: [[0.72, 0.66, 0.56], [0.64, 0.58, 0.49]]
+  wood:  [[0.55, 0.40, 0.27], [0.48, 0.34, 0.22]]
+  dark:  [[0.30, 0.30, 0.32], [0.25, 0.25, 0.27]]
+
+# --- real-scene extras -------------------------------------------------------
+textured_prob: 0.8           # else the cabinet gets plain random colours from cabinet_palettes
+tex_tint: [0.85, 1.15]       # brightness of the photo textures (per channel ±3% on top)
+
+# lift as the kcare command `lift::X` (skills/lift.py): X is clipped to LIFT_CONFIGS['range'],
+# then mobile_height is subtracted -> lift_joint. 0.56 is kcare's lowest (anything below gives the
+# same 0.13 m); 0.70 puts the TCP ~12 cm above the middle handle -> lift_joint 0.13 .. 0.27 m.
+lift_inputs: [0.56, 0.70]
+lift_kcare: {range: [0.56, 1.1], mobile_height: 0.43, nominal: 0.5}
+
+light:                       # office ceiling lighting, overrides the generic block above
+  azimuth_deg: [0, 360]
+  elevation_deg: [45, 85]
+  diffuse: [0.45, 0.7]       # ceiling lights (tops bright, fronts dimmer)
+  ambient: [0.25, 0.4]
+  headlight: [0.06, 0.2]     # camera-attached light: keep weak
+
+# Which drawer to open, and how the user says it. Drawers are indexed bottom -> top in
+# cabinet.py (0 = bottom, 1 = middle, 2 = top); ordinals in the prompts count FROM THE TOP
+# (1st = top). The plain "open drawer" always means the middle one — the default the real
+# open_drawer skill targets. Each episode draws a drawer (weights) then one phrasing.
+drawer_targets:
+  weights: {0: 1.0, 1: 1.0, 2: 1.0}
+  prompts:
+    2: ["open the top drawer", "open the first drawer", "open the 1st drawer", "open the upper drawer"]
+    1: ["open the middle drawer", "open the second drawer", "open the 2nd drawer", "open drawer"]
+    0: ["open the bottom drawer", "open the third drawer", "open the 3rd drawer", "open the lowest drawer"]

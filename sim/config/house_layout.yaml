@@ -1,0 +1,400 @@
+rooms:
+  bedroom:
+    x:
+    - -4.5
+    - -1.8
+    y:
+    - -0.58
+    - 4.0
+  living room:
+    x:
+    - -1.8
+    - 1.9
+    y:
+    - 0.6
+    - 4.0
+  study room:
+    x:
+    - 1.9
+    - 5.5
+    y:
+    - 0.64
+    - 4.0
+  hall:
+    x:
+    - -1.8
+    - 5.5
+    y:
+    - -0.58
+    - 0.62
+  kitchen:
+    x:
+    - -1.76
+    - 1.96
+    y:
+    - -4.0
+    - -0.58
+  warehouse:
+    x:
+    - -3.0
+    - -1.76
+    y:
+    - -2.32
+    - -0.58
+  laundry room:
+    x:
+    - -3.0
+    - -1.76
+    y:
+    - -4.0
+    - -2.32
+  dress room:
+    x:
+    - -4.5
+    - -3.0
+    y:
+    - -4.0
+    - -0.58
+  corridor:
+    x:
+    - 1.96
+    - 2.76
+    y:
+    - -4.0
+    - -0.58
+  restroom:
+    x:
+    - 2.76
+    - 5.5
+    y:
+    - -4.0
+    - -0.58
+walls:
+- p0:
+  - -4.5
+  - -4.0
+  p1:
+  - 5.5
+  - -4.0
+  doors: []
+- p0:
+  - -4.5
+  - 4.0
+  p1:
+  - 5.5
+  - 4.0
+  doors: []
+- p0:
+  - -4.5
+  - -4.0
+  p1:
+  - -4.5
+  - 4.0
+  doors: []
+- p0:
+  - 5.5
+  - -4.0
+  p1:
+  - 5.5
+  - 4.0
+  doors: []
+- p0:
+  - -1.8
+  - 0.6
+  p1:
+  - -1.8
+  - 4.0
+  doors: []
+- p0:
+  - 1.9
+  - 0.64
+  p1:
+  - 1.9
+  - 4.0
+  doors: []
+- p0:
+  - 1.9
+  - 0.64
+  p1:
+  - 5.5
+  - 0.64
+  doors:
+  - - 1.9
+    - 2.76
+- p0:
+  - -4.5
+  - -0.58
+  p1:
+  - -1.76
+  - -0.58
+  doors:
+  - - -4.15
+    - -3.25
+- p0:
+  - -1.76
+  - -4.0
+  p1:
+  - -1.76
+  - -0.58
+  doors:
+  - - -3.42
+    - -2.52
+  - - -1.98
+    - -1.08
+- p0:
+  - -3.0
+  - -4.0
+  p1:
+  - -3.0
+  - -0.58
+  doors: []
+- p0:
+  - -3.0
+  - -2.32
+  p1:
+  - -1.76
+  - -2.32
+  doors: []
+- p0:
+  - 1.96
+  - -4.0
+  p1:
+  - 1.96
+  - -0.58
+  doors: []
+- p0:
+  - 2.76
+  - -4.0
+  p1:
+  - 2.76
+  - -0.58
+  doors: []
+- p0:
+  - 2.76
+  - -0.58
+  p1:
+  - 5.5
+  - -0.58
+  doors:
+  - - 3.68
+    - 4.58
+spots:
+  desk@study room:
+    centre:
+    - 2.25
+    - 2.5
+    front_yaw_deg: 0.0
+    depth: 0.6
+    width: 1.0
+    height: 0.72
+    default_mode: left
+  drawer@kitchen:
+    centre:
+    - -1.425
+    - -0.82
+    front_yaw_deg: 360.0
+    depth: 0.5
+    width: 0.4
+    height: 0.583
+    default_mode: left
+    site: nw
+    handle: gray handle
+    handle_height: 0.436
+    aliases:
+    - drawer@living room
+    robot_pose:
+      x: -0.755
+      y: -0.209
+      heading_deg: 271.92
+  counter@kitchen:
+    centre:
+    - -0.8
+    - -3.63
+    front_yaw_deg: 90.0
+    depth: 0.64
+    width: 1.8
+    height: 0.9
+    default_mode: left
+  shelf@kitchen:
+    centre:
+    - 0.42
+    - -3.72
+    front_yaw_deg: 90.0
+    depth: 0.52
+    width: 0.58
+    height: 0.512
+    default_mode: left
+  dining table@kitchen:
+    centre:
+    - 1.18
+    - -2.81
+    front_yaw_deg: 90.0
+    depth: 0.62
+    width: 1.39
+    height: 0.745
+    default_mode: left
+  washer@laundry room:
+    centre:
+    - -2.64
+    - -3.0
+    front_yaw_deg: 0.0
+    depth: 0.6
+    width: 0.6
+    height: 0.86
+    default_mode: left
+  chest@bedroom:
+    centre:
+    - -4.23
+    - 0.1
+    front_yaw_deg: 0.0
+    depth: 0.42
+    width: 0.8
+    height: 0.728
+    default_mode: left
+    handle: gold knob
+    handle_height: 0.6
+  stool@bedroom:
+    centre:
+    - -4.25
+    - 0.95
+    front_yaw_deg: 0.0
+    depth: 0.4
+    width: 0.52
+    height: 0.445
+    default_mode: left
+  shelf@restroom:
+    centre:
+    - 2.88
+    - -1.5
+    front_yaw_deg: 0.0
+    depth: 0.2
+    width: 0.6
+    height: 0.952
+    default_mode: left
+objects:
+  apple:
+    ycb: 013_apple
+    'on': desk@study room
+    pos:
+    - 2.37
+    - 2.4
+    - 0.722
+  banana:
+    ycb: 011_banana
+    'on': desk@study room
+    pos:
+    - 2.35
+    - 2.6
+    - 0.722
+  orange:
+    ycb: 017_orange
+    'on': desk@study room
+    pos:
+    - 2.37
+    - 2.8
+    - 0.722
+  mug:
+    ycb: 025_mug
+    'on': desk@study room
+    pos:
+    - 2.35
+    - 2.18
+    - 0.723
+  cracker box:
+    ycb: 003_cracker_box
+    'on': shelf@kitchen
+    pos:
+    - 0.42
+    - -3.72
+    - 0.517
+  mustard bottle:
+    ycb: 006_mustard_bottle
+    'on': counter@kitchen
+    pos:
+    - -0.8
+    - -3.68
+    - 0.905
+  tomato soup can:
+    ycb: 005_tomato_soup_can
+    'on': counter@kitchen
+    pos:
+    - -0.53
+    - -3.71
+    - 0.902
+  pitcher:
+    ycb: 019_pitcher_base
+    'on': counter@kitchen
+    pos:
+    - -0.64
+    - -3.68
+    - 0.905
+  sugar box:
+    ycb: 004_sugar_box
+    'on': counter@kitchen
+    pos:
+    - -1.57
+    - -3.75
+    - 0.902
+  bowl:
+    ycb: 024_bowl
+    'on': dining table@kitchen
+    pos:
+    - 0.98
+    - -2.81
+    - 0.748
+  plate:
+    ycb: 029_plate
+    'on': dining table@kitchen
+    pos:
+    - 1.48
+    - -2.86
+    - 0.75
+  bleach bottle:
+    ycb: 021_bleach_cleanser
+    'on': washer@laundry room
+    pos:
+    - -2.64
+    - -2.9
+    - 0.862
+  red cup:
+    ycb: 065-a_cups
+    'on': chest@bedroom
+    pos:
+    - -4.15
+    - -0.1
+    - 0.731
+  tennis ball:
+    ycb: 056_tennis_ball
+    'on': stool@bedroom
+    pos:
+    - -4.25
+    - 0.95
+    - 0.447
+  spray bottle:
+    ycb: 022_windex_bottle
+    'on': shelf@restroom
+    pos:
+    - 2.88
+    - -1.62
+    - 0.955
+  sponge:
+    ycb: 026_sponge
+    'on': shelf@restroom
+    pos:
+    - 2.88
+    - -1.35
+    - 0.954
+start:
+  x: 0.0
+  y: 0.0
+  yaw_deg: 0.0
+bounds:
+  x:
+  - -4.5
+  - 5.5
+  y:
+  - -4.0
+  - 4.0
+cab_site: nw
+source: docs/draws/floor.drawio (owner, 2026-10-07); looks from the owner photos +
+  home_tour.mp4

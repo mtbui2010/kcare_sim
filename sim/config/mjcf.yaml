@@ -1,0 +1,88 @@
+# What urdf_to_mjcf.py adds on top of MuJoCo's URDF import.
+
+option:
+  timestep: 0.002
+  integrator: implicitfast
+  cone: elliptic
+  impratio: 10
+
+# Joint damping / rotor armature. xArm joints have harmonic drives; armature
+# keeps high-gain position servos stable at 2 ms.
+joint_dynamics:
+  joint1: {damping: 2.0, armature: 0.1}
+  joint2: {damping: 2.0, armature: 0.1}
+  joint3: {damping: 1.5, armature: 0.1}
+  joint4: {damping: 1.5, armature: 0.1}
+  joint5: {damping: 1.0, armature: 0.05}
+  joint6: {damping: 1.0, armature: 0.05}
+  joint7: {damping: 1.0, armature: 0.05}
+  lift_joint: {damping: 50.0, armature: 1.0}
+  head_joint1: {damping: 0.1, armature: 0.01}
+  head_joint2: {damping: 0.1, armature: 0.01}
+  # Koras gripper closes at ~0.05 m/s (URDF velocity limit). The virtual joint
+  # weighs 5 g, so without damping the 50 N actuator slams the fingers shut at
+  # metres per second and they tunnel into objects. 50 N / 1000 N·s/m = 0.05 m/s.
+  virtual_gripper_joint: {damping: 1000.0, armature: 0.1}
+
+# Position actuators, in ctrl order. Force limits = URDF <limit effort>.
+# Gains are a starting point; tune them by system ID (replay the same forward
+# commands on the real robot and in sim, match joint tracking).
+actuators:
+  - {name: joint1, joint: joint1, kp: 2000, force: 50}
+  - {name: joint2, joint: joint2, kp: 2000, force: 50}
+  - {name: joint3, joint: joint3, kp: 1500, force: 30}
+  - {name: joint4, joint: joint4, kp: 1500, force: 30}
+  - {name: joint5, joint: joint5, kp: 800,  force: 30}
+  - {name: joint6, joint: joint6, kp: 800,  force: 20}
+  - {name: joint7, joint: joint7, kp: 800,  force: 20}
+  - {name: lift,   joint: lift_joint, kp: 30000, force: 700}
+  - {name: head_pan,  joint: head_joint1, kp: 50, force: 30}
+  - {name: head_tilt, joint: head_joint2, kp: 50, force: 30}
+  - {name: gripper, joint: virtual_gripper_joint, kp: 1000, force: 50}
+
+# Body pairs whose convex hulls overlap at rest by construction (check_sim.py
+# step 2 lists them): the telescoping lift and the nested pan-tilt brackets.
+contact_exclude:
+  - [lift_base_link, lift_link]
+  - [head_base, head_link1]
+  - [head_base, head_link2]
+  - [head_base, head_link3]
+  - [head_link1, head_link2]
+  - [head_link1, head_link3]
+  - [head_link2, head_link3]
+  # at width 0 the finger hulls already overlap ~1 mm; the joint limit is the
+  # mechanical stop, a finger-finger contact only makes them tunnel through
+  - [left_finger_tip, right_finger_tip]
+
+gripper:
+  driver: virtual_gripper_joint          # opening width 0 (closed) .. 0.1 m
+  fingers: [left_finger_tip_joint, right_finger_tip_joint]
+  ratio: 0.5                             # <mimic multiplier> in tool.urdf.xacro
+  friction: "1.5 0.01 0.0002"
+
+# fovy = vertical FOV [deg] of the colour stream from the datasheets; replace
+# with the value from the real /camera_info (fy) once recorded.
+# `real:` = entry in config/camera_real.yaml (fitted from the robot's camera_info by
+# estimate_camera.py): if present, the camera gets the real fx, fy, cx, cy and fovy is ignored.
+cameras:
+  - {name: head_rgb,  body: femto_color_optical_frame,  real: head,  fovy: 51, width: 1280, height: 720}  # Femto Bolt
+  - {name: wrist_rgb, body: camera_color_optical_frame, real: wrist, fovy: 58, width: 848,  height: 480}  # D405
+
+# kaair_moveit_config/config/initial_positions.yaml
+home:
+  head_joint1: 0.0
+  head_joint2: 0.0
+  joint1: 0.0
+  joint2: 0.261799
+  joint3: 0.0
+  joint4: 0.261799
+  joint5: -3.14159
+  joint6: 0.0
+  joint7: 0.0
+  lift_joint: 0.2
+  virtual_gripper_joint: 0.1
+
+# Grasp smoke-test scene (check_sim.py moves table/cube under the TCP).
+scene:
+  table: {pos: [0.9, 0.0, 0.35], half_size: [0.3, 0.4, 0.35]}
+  cube:  {pos: [0.9, 0.0, 0.725], half: 0.02, mass: 0.05}

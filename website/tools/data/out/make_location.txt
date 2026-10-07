@@ -1,0 +1,10 @@
+-> /sim/kcare_sim_configs/locations/sim_house: 35 connections, 9 ENV locations; active_location = sim_house
+   desk@study room              loc (  3.10,   2.50) rz -180.0  height 0.72
+   drawer@kitchen               loc ( -0.76,  -0.21) rz -178.1  height 0.583
+   counter@kitchen              loc ( -0.80,  -2.76) rz  -90.0  height 0.9
+   shelf@kitchen                loc (  0.42,  -2.91) rz  -90.0  height 0.512
+   dining table@kitchen         loc (  1.18,  -1.95) rz  -90.0  height 0.745
+   washer@laundry room          loc ( -1.79,  -3.00) rz -180.0  height 0.86
+   chest@bedroom                loc ( -3.47,   0.10) rz -180.0  height 0.728
+   stool@bedroom                loc ( -3.50,   0.95) rz -180.0  height 0.445
+   shelf@restroom               loc (  3.53,  -1.50) rz -180.0  height 0.952

@@ -1,0 +1,48 @@
+# Simulation container for kaair (A6000 server). Separate from the robot-PC
+# container (keti_ros2_container_*): different name, no /dev passthrough, and a
+# ROS_DOMAIN_ID of its own so nothing here can talk to a real robot on the LAN.
+services:
+  kaair_sim:
+    image: kaair-sim:humble
+    container_name: kaair_sim_humble
+    network_mode: host
+    ipc: host
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - TZ=Asia/Seoul
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - MUJOCO_GL=egl
+      - ROS_DISTRO=humble
+      - ROS_DOMAIN_ID=77
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      # Datasets and checkpoints live on the NAS, not the A6000's local disk.
+      - KAAIR_DATA=/nas/datasets
+      - KAAIR_CKPT=/nas/checkpoints
+      - HF_LEROBOT_HOME=/nas/datasets
+      - HF_HUB_CACHE=/hf_cache      # shared HF hub cache on the NAS (pretrained policies)
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../keti_assist_ai_robot_ros2:/workspace
+      - .:/sim
+      # NAS share with datasets / checkpoints (NFS, autofs on the host)
+      - /mnt/nas/lerobot_shared/kaair_sim:/nas
+      - /mnt/nas/huggingface:/hf_cache
+      # kcare_robot / robot_agent source from the dev PC, sshfs read-only via a reverse tunnel
+      # (~/.local/bin/kcare_remote_mount.sh, cron). rslave: a remount after a tunnel drop shows up here too.
+      - ${HOME}/kcare_mnt:/kcare_mnt:ro,rslave
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu, graphics, utility, compute]
+    stdin_open: true
+    tty: true
+    working_dir: /sim
+    command: bash -c "/bin/bash"

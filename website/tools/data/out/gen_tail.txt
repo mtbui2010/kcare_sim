@@ -1,0 +1,6 @@
+[  1647s] w3 OK   opened 24.9 cm  (94.1 s)   kept 110/500, tried 111
+[  1668s] w1 OK   opened 24.9 cm  (104.2 s)   kept 111/500, tried 112
+[  1669s] w2 OK   opened 24.9 cm  (103.2 s)   kept 112/500, tried 113
+[  1673s] w7 OK   opened 24.9 cm  (94.5 s)   kept 113/500, tried 114
+[  1686s] w0 OK   opened 24.9 cm  (91.7 s)   kept 114/500, tried 115
+[  1688s] w5 OK   opened 24.9 cm  (99.9 s)   kept 115/500, tried 116

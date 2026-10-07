@@ -1,0 +1,49 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% kaair (slamtec variant) kinematic tree: links = boxes, joints = labels on edges.
+\begin{tikzpicture}[
+  lk/.style={draw=gray!60!black,fill=white,rounded corners=2pt,font=\ttfamily\scriptsize,inner sep=3pt},
+  mv/.style={lk,draw=accent,fill=keybg},
+  cam/.style={lk,draw=orange!80!black,fill=orange!10},
+  j/.style={font=\sffamily\tiny,text=accent},
+  e/.style={-,gray!70!black},
+  node distance=4.2mm and 5mm]
+  \node[lk] (fp) {base\_footprint};
+  \node[lk,below=of fp] (sb) {slamtec\_base\_link};
+  \node[lk,below=of sb] (rb) {robot\_base\_link};
+  \node[lk,below=of rb] (lb) {lift\_base\_link};
+  % lift + arm branch
+  \node[mv,below left=8mm and 2mm of lb] (ll) {lift\_link};
+  \node[lk,below=of ll] (ab) {arm\_base};
+  \node[mv,below=of ab] (x7) {link1 \dots\ link7};
+  \node[lk,below=of x7] (eef) {link\_eef};
+  \node[lk,below=of eef] (hand) {hand\_base\_link};
+  \node[lk,below=of hand] (gb) {gripper\_body\_link};
+  \node[lk,below left=5mm and -8mm of gb] (tcp) {tool\_tcp\_link};
+  \node[mv,below right=5mm and -6mm of gb] (fg) {left/right\_finger\_tip};
+  \node[cam,right=10mm of hand] (d405) {D405 (camera tay)};
+  % head branch
+  \node[lk,below right=8mm and 6mm of lb] (hb) {head\_base};
+  \node[mv,below=of hb] (h1) {head\_link2 (pan)};
+  \node[mv,below=of h1] (h2) {head\_link3 (tilt)};
+  \node[cam,below=of h2] (fem) {Femto Bolt (camera đầu)};
+  \draw[e] (fp) -- (sb); \draw[e] (sb) -- (rb); \draw[e] (rb) -- (lb);
+  \draw[e] (lb) -- node[j,left]{lift\_joint (trượt, 0.11--0.67 m)} (ll);
+  \draw[e] (ll) -- node[j,left]{cố định, x+0.24 m} (ab);
+  \draw[e] (ab) -- node[j,left]{joint1..7 (xArm7, quay)} (x7);
+  \draw[e] (x7) -- (eef); \draw[e] (eef) -- node[j,left]{cố định, quay 180°} (hand);
+  \draw[e] (hand) -- (gb);
+  \draw[e] (gb) -- node[j,left]{+0.191 m} (tcp);
+  \draw[e] (gb) -- node[j,right]{mimic ×0.5} (fg);
+  \draw[e] (hand) -- (d405);
+  \draw[e] (lb) -- node[j,right]{cố định, z+0.859 m} (hb);
+  \draw[e] (hb) -- node[j,right]{head\_joint1} (h1);
+  \draw[e] (h1) -- node[j,right]{head\_joint2} (h2);
+  \draw[e] (h2) -- (fem);
+  \node[font=\sffamily\scriptsize,align=left,anchor=north west] at ($(fem.south west)+(4mm,-26mm)$)
+    {\tikz\node[mv]{\ }; khớp chuyển động được\\[2pt]
+     \tikz\node[cam]{\ }; camera\\[2pt]
+     \code{virtual\_gripper\_joint}: độ mở 0--0.1 m,\\ mỗi ngón đi 1/2 (mimic)};
+\end{tikzpicture}
+\end{document}

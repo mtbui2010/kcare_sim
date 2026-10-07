@@ -1,0 +1,29 @@
+% Shared preamble for every diagram in docs/draws/. Each diagram is a standalone
+% document compiled with pdflatex to docs/figs/<name>.pdf (see docs/Makefile);
+% the book in docs/tex/ only \includegraphics those PDFs.
+% pdflatex + TeX Live: Vietnamese through the T5 encoding (vntex, installed in
+% ~/texmf) with Latin Modern; T1 + textcomp cover dashes, °, ×, ·.
+\usepackage[T1,T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{textcomp}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,calc,backgrounds}
+\definecolor{accent}{HTML}{1F5FA8}
+\definecolor{keybg}{HTML}{EAF2FB}
+\newcommand{\code}[1]{\texttt{#1}}
+\tikzset{
+  blk/.style={draw=accent,fill=keybg,rounded corners=3pt,align=center,font=\sffamily\small,
+              minimum height=9mm,inner sep=4pt,text width=#1},
+  blk/.default=28mm,
+  sim/.style={blk=#1,draw=teal!70!black,fill=teal!8},
+  sim/.default=28mm,
+  real/.style={blk=#1,draw=orange!80!black,fill=orange!10},
+  real/.default=28mm,
+  data/.style={blk=#1,draw=violet!70!black,fill=violet!8},
+  data/.default=28mm,
+  arr/.style={-{Stealth[length=2.2mm]},thick,draw=gray!70!black},
+  lbl/.style={font=\sffamily\scriptsize,text=gray!30!black,align=center},
+}

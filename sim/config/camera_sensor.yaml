@@ -1,0 +1,41 @@
+# Sensor behaviour on top of camera_real.yaml (intrinsics / colour / noise, written by estimate_camera.py and
+# calibrate_color.py): motion blur, rolling shutter and the depth model (camera_model.DepthModel).
+# Merged per camera by camera_model.load_camera_models / load_depth_models.
+head:                          # Orbbec Femto Bolt
+  exposure_ms: 12              # indoor auto-exposure shutter (not measured; jittered x0.6..1.4 per episode)
+  readout_ms: 20               # rolling-shutter colour sensor, top->bottom
+  wb_neutral_mix: [0.0, 1.0]   # per episode: 0 = office-fitted colour_gain, 1 = neutral (other lighting)
+  motion_depth_m: 1.2          # typical scene distance for translation blur
+  depth:                       # /femto/depth/aligned: NFOV unbinned ToF registered to colour (datasheet values)
+    type: tof
+    range_m: [0.5, 3.86]
+    fov_deg: [75, 65]
+    block: 2                   # 640x576 native -> 1280x720
+    sigma_mm: [1.0, 0.0012]    # a + b*z[mm]
+    edge_jump_m: 0.04
+    flying_drop: 0.5
+    dark_lum: 10               # luminance (0..255) of the ideal render below which ToF gets no return
+    baseline_shadow_m: 0.032   # depth camera <-> colour camera
+    shadow_side: -1
+wrist:                         # Intel RealSense D405
+  exposure_ms: 10              # global shutter (readout 0)
+  readout_ms: 0
+  wb_neutral_mix: [0.0, 1.0]   # the office-fitted gain is warm (R 1.10, B 0.86); at home AWB may differ
+  motion_depth_m: 0.5
+  depth:                       # /hand/camera/depth/image_rect_raw, fitted on /nas/real/20260928_scene1/wrist_depth.png
+    type: stereo
+    range_m: [0.07, 6.0]
+    baseline_m: 0.018
+    sigma_disp_px: 0.07        # -> 2.2 mm at 0.5 m, 5.7 mm at 0.8 m (real: 1.9 / 7.2)
+    sigma_floor_mm: 0.8
+    blob_px: 24
+    hole_px: 20
+    lowtex_std: 1.5
+    lowtex_p: 0.35
+    far_hole_z: [1.5, 6.0]
+    far_hole_p: 0.6
+    edge_jump_m: 0.04
+    edge_fatten_px: 2
+    left_band_px: 8
+    baseline_shadow_m: 0.018   # right imager
+    shadow_side: 1

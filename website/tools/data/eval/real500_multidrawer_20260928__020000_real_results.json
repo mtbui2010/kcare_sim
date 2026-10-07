@@ -1,0 +1,464 @@
+{
+  "ckpt": "/nas/checkpoints/smolvla_open_drawer_real500_multidrawer_20260928/checkpoints/020000/pretrained_model",
+  "n": 50,
+  "success_rate": 0.88,
+  "mean_opened_m": 0.2123021574201571,
+  "timeout_s": 15.0,
+  "success_m": 0.2,
+  "seed0": 1000000000,
+  "task": "task_open_drawer.yaml",
+  "rand_config": "randomization_real.yaml",
+  "camera_model": true,
+  "episodes": [
+    {
+      "success": true,
+      "opened": 0.2322973011290222,
+      "t_success": 9.166666666666666,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000000
+    },
+    {
+      "success": false,
+      "opened": -0.0079718918410198,
+      "t_success": null,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 1.3852777310559701e-15,
+      "seed": 1000000001
+    },
+    {
+      "success": true,
+      "opened": 0.25938270883169573,
+      "t_success": 8.433333333333334,
+      "target": 2,
+      "prompt": "open the first drawer",
+      "wrong_drawer_m": 2.43418561726182e-16,
+      "seed": 1000000002
+    },
+    {
+      "success": true,
+      "opened": 0.23123209774636871,
+      "t_success": 8.0,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000003
+    },
+    {
+      "success": true,
+      "opened": 0.24254840980631412,
+      "t_success": 8.2,
+      "target": 2,
+      "prompt": "open the upper drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000004
+    },
+    {
+      "success": true,
+      "opened": 0.2309320623567246,
+      "t_success": 8.233333333333333,
+      "target": 1,
+      "prompt": "open the second drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000005
+    },
+    {
+      "success": true,
+      "opened": 0.2665635181413224,
+      "t_success": 7.933333333333334,
+      "target": 0,
+      "prompt": "open the third drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000006
+    },
+    {
+      "success": true,
+      "opened": 0.23111172554621287,
+      "t_success": 8.333333333333334,
+      "target": 2,
+      "prompt": "open the 1st drawer",
+      "wrong_drawer_m": 6.118641317382401e-16,
+      "seed": 1000000007
+    },
+    {
+      "success": true,
+      "opened": 0.2116253144188819,
+      "t_success": 8.366666666666667,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000008
+    },
+    {
+      "success": true,
+      "opened": 0.23663934909860215,
+      "t_success": 8.5,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 5.857247152767358e-16,
+      "seed": 1000000009
+    },
+    {
+      "success": false,
+      "opened": 0.0,
+      "t_success": null,
+      "target": 1,
+      "prompt": "open the second drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000010
+    },
+    {
+      "success": true,
+      "opened": 0.25957499586595845,
+      "t_success": 7.766666666666667,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000011
+    },
+    {
+      "success": true,
+      "opened": 0.22058889783681745,
+      "t_success": 8.466666666666667,
+      "target": 2,
+      "prompt": "open the first drawer",
+      "wrong_drawer_m": 7.177825233006259e-16,
+      "seed": 1000000012
+    },
+    {
+      "success": false,
+      "opened": 0.0,
+      "t_success": null,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000013
+    },
+    {
+      "success": true,
+      "opened": 0.21255109306911532,
+      "t_success": 9.233333333333333,
+      "target": 1,
+      "prompt": "open drawer",
+      "wrong_drawer_m": 4.9449866081422465e-16,
+      "seed": 1000000014
+    },
+    {
+      "success": true,
+      "opened": 0.24480811433520924,
+      "t_success": 7.866666666666666,
+      "target": 1,
+      "prompt": "open the middle drawer",
+      "wrong_drawer_m": 5.350132272198932e-16,
+      "seed": 1000000015
+    },
+    {
+      "success": false,
+      "opened": 0.0,
+      "t_success": null,
+      "target": 1,
+      "prompt": "open drawer",
+      "wrong_drawer_m": 7.117284113896565e-16,
+      "seed": 1000000016
+    },
+    {
+      "success": true,
+      "opened": 0.24101158833047615,
+      "t_success": 8.1,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 9.288756119462682e-16,
+      "seed": 1000000017
+    },
+    {
+      "success": true,
+      "opened": 0.23932845050120508,
+      "t_success": 8.1,
+      "target": 2,
+      "prompt": "open the top drawer",
+      "wrong_drawer_m": 5.376341210694906e-16,
+      "seed": 1000000018
+    },
+    {
+      "success": true,
+      "opened": 0.2579328381014109,
+      "t_success": 8.233333333333333,
+      "target": 1,
+      "prompt": "open the middle drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000019
+    },
+    {
+      "success": true,
+      "opened": 0.21969320504617867,
+      "t_success": 10.533333333333333,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000020
+    },
+    {
+      "success": true,
+      "opened": 0.2308110559690698,
+      "t_success": 8.133333333333333,
+      "target": 2,
+      "prompt": "open the first drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000021
+    },
+    {
+      "success": true,
+      "opened": 0.22732080875429064,
+      "t_success": 8.266666666666667,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000022
+    },
+    {
+      "success": true,
+      "opened": 0.23183624013673151,
+      "t_success": 7.966666666666667,
+      "target": 1,
+      "prompt": "open drawer",
+      "wrong_drawer_m": 4.260381802012351e-16,
+      "seed": 1000000023
+    },
+    {
+      "success": true,
+      "opened": 0.25853481885456453,
+      "t_success": 8.133333333333333,
+      "target": 2,
+      "prompt": "open the top drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000024
+    },
+    {
+      "success": true,
+      "opened": 0.24917698118641832,
+      "t_success": 8.0,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000025
+    },
+    {
+      "success": true,
+      "opened": 0.22158277364262863,
+      "t_success": 8.066666666666666,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000026
+    },
+    {
+      "success": true,
+      "opened": 0.23318496985117446,
+      "t_success": 8.133333333333333,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000027
+    },
+    {
+      "success": true,
+      "opened": 0.2577746132975535,
+      "t_success": 8.2,
+      "target": 2,
+      "prompt": "open the first drawer",
+      "wrong_drawer_m": 5.975591133655125e-16,
+      "seed": 1000000028
+    },
+    {
+      "success": true,
+      "opened": 0.26245305292730525,
+      "t_success": 8.066666666666666,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000029
+    },
+    {
+      "success": true,
+      "opened": 0.23589605447647952,
+      "t_success": 7.9,
+      "target": 1,
+      "prompt": "open the second drawer",
+      "wrong_drawer_m": 6.450721905302907e-16,
+      "seed": 1000000030
+    },
+    {
+      "success": true,
+      "opened": 0.2591227383129356,
+      "t_success": 8.066666666666666,
+      "target": 2,
+      "prompt": "open the top drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000031
+    },
+    {
+      "success": true,
+      "opened": 0.2510890102241943,
+      "t_success": 8.266666666666667,
+      "target": 2,
+      "prompt": "open the 1st drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000032
+    },
+    {
+      "success": true,
+      "opened": 0.20720858183523883,
+      "t_success": 8.933333333333334,
+      "target": 0,
+      "prompt": "open the 3rd drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000033
+    },
+    {
+      "success": true,
+      "opened": 0.24306429655490583,
+      "t_success": 8.066666666666666,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000034
+    },
+    {
+      "success": true,
+      "opened": 0.24664394817024723,
+      "t_success": 8.066666666666666,
+      "target": 0,
+      "prompt": "open the third drawer",
+      "wrong_drawer_m": 3.5598160507326854e-16,
+      "seed": 1000000035
+    },
+    {
+      "success": true,
+      "opened": 0.25292684988908753,
+      "t_success": 8.166666666666666,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000036
+    },
+    {
+      "success": true,
+      "opened": 0.24759488697263327,
+      "t_success": 8.266666666666667,
+      "target": 2,
+      "prompt": "open the 1st drawer",
+      "wrong_drawer_m": 1.0825480654702751e-16,
+      "seed": 1000000037
+    },
+    {
+      "success": true,
+      "opened": 0.2518584795715652,
+      "t_success": 7.966666666666667,
+      "target": 2,
+      "prompt": "open the first drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000038
+    },
+    {
+      "success": true,
+      "opened": 0.21186458575314474,
+      "t_success": 9.933333333333334,
+      "target": 2,
+      "prompt": "open the 1st drawer",
+      "wrong_drawer_m": 2.640459523752301e-16,
+      "seed": 1000000039
+    },
+    {
+      "success": false,
+      "opened": 0.0,
+      "t_success": null,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000040
+    },
+    {
+      "success": true,
+      "opened": 0.23930704030523384,
+      "t_success": 8.3,
+      "target": 2,
+      "prompt": "open the upper drawer",
+      "wrong_drawer_m": 6.027566750043863e-16,
+      "seed": 1000000041
+    },
+    {
+      "success": true,
+      "opened": 0.24051898417474646,
+      "t_success": 8.133333333333333,
+      "target": 0,
+      "prompt": "open the lowest drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000042
+    },
+    {
+      "success": true,
+      "opened": 0.2568830282118086,
+      "t_success": 8.1,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000043
+    },
+    {
+      "success": true,
+      "opened": 0.2535224800546913,
+      "t_success": 8.1,
+      "target": 0,
+      "prompt": "open the third drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000044
+    },
+    {
+      "success": true,
+      "opened": 0.24954155395657848,
+      "t_success": 7.966666666666667,
+      "target": 2,
+      "prompt": "open the upper drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000045
+    },
+    {
+      "success": false,
+      "opened": -0.0038635773388942985,
+      "t_success": null,
+      "target": 0,
+      "prompt": "open the bottom drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000046
+    },
+    {
+      "success": true,
+      "opened": 0.2472028829570814,
+      "t_success": 8.733333333333333,
+      "target": 1,
+      "prompt": "open the 2nd drawer",
+      "wrong_drawer_m": 6.578622884070904e-16,
+      "seed": 1000000047
+    },
+    {
+      "success": true,
+      "opened": 0.2512300649967559,
+      "t_success": 8.033333333333333,
+      "target": 2,
+      "prompt": "open the top drawer",
+      "wrong_drawer_m": 0.0,
+      "seed": 1000000048
+    },
+    {
+      "success": true,
+      "opened": 0.27097088898918853,
+      "t_success": 8.1,
+      "target": 1,
+      "prompt": "open the 2nd drawer",
+      "wrong_drawer_m": 6.812879859769279e-16,
+      "seed": 1000000049
+    }
+  ]
+}

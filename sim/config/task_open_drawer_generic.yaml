@@ -1,0 +1,32 @@
+# FROZEN copy of the task used for the 2026-09-24 runs (generic cabinet A, plain scene) — keep so
+# those checkpoints are re-evaluated on exactly their scenes: eval_policy.py --task ... this file.
+# "open drawer" task — ready pose and scene, taken from the real kcare_robot
+# (kcare_robot/configs/tasks.py). Angles in degrees as kcare stores them.
+cabinet: A
+mode: left                     # kcare robot mode; drawer@living room uses 'left'
+
+ready_pose:
+  head:                        # moveh::left,down (head_joint2 = ry, head_joint1 = rz)
+    ry: -50
+    rz: {left: -70, right: 70} # HEAD_CONFIGS['rz']
+  # lift::0.5 -> kcare clips to LIFT_CONFIGS range [0.56, 1.1] then subtracts
+  # mobile_height 0.43 -> lift_joint 0.13 m (its lowest)
+  lift: {inputs: 0.5, range: [0.56, 1.1], mobile_height: 0.43}
+  arm:                         # movej::approach_drawer (ARM_CONFIGS)
+    left:  [3.834008869823475, 82.74111651120957, 17.51407523013154, 81.91691758406412,
+            -81.43637962500787, 107.12427713112979, 2.9979493191843094]
+    right: [-6.211779573691565, 81.90505354547581, -15.779663096075398, 80.38103343597086,
+            -277.14880451766084, 105.36503896698794, -3.078588880403007]
+  gripper: 0.1                 # open [m]
+
+# Cabinet placement relative to the ready TCP: the drawer front faces the
+# gripper, handle centred on the TCP in the sliding direction, `standoff` m of
+# free space between TCP and handle bar (fine_move closes that gap on the robot).
+# dforward / dshift mirror kcare's per-location base offsets (skills/mobile.py):
+#   dforward > 0 : base backs away from the cabinet along the approach axis
+#   dshift       : base slides along the cabinet front. The real env's -0.25 is
+#                  what the baseline placement already represents, so 0 here.
+placement:
+  standoff: 0.15
+  dforward: 0.10
+  dshift: 0.0

@@ -1,0 +1,2 @@
+[INFO] [1791355618.971626037] [vla_drawer_node]: /drawer/open ready, policy /ckpt/smolvla_open_drawer_officehouse_20261007/checkpoints/005000/pretrained_model at http://127.0.0.1:11450
+[INFO] [1791355676.586251162] [vla_drawer_node]: opened cab_drawer1 by 28.6 cm (sim ground truth) in 18.7 s; {'steps': 450, 'stalls': 0, 'startup_ticks': 93, 'chunks': 14, 'dropped_stale': 140, 'overruns': 0, 'roundtrip_ms_median': 327.31223851442337, 'roundtrip_ms_p95': 1311.700765322893}

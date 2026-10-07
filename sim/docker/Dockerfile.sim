@@ -1,0 +1,21 @@
+# kaair-sim:humble — kaair-moveit:humble (keti_assist_ai_robot_ros2/docker/Dockerfile)
+# + the Python tooling used to turn the kaair URDF into a simulation model.
+# Build: see ../README.md
+ARG BASE_IMAGE=kaair-moveit:humble
+FROM ${BASE_IMAGE}
+
+USER root
+# EGL/OSMesa so MuJoCo can render cameras headless (MUJOCO_GL=egl).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libegl1 libgl1 libosmesa6 libglfw3 python3-vcstool python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+# numpy is pinned in the same resolve so pip picks mujoco/trimesh builds that
+# keep the base image's 1.26.4 (ROS humble python bindings).
+# setuptools: the base image's requirements step pulls >=80, which colcon-core
+# 0.21 rejects (breaks ament_python builds).
+RUN pip install --no-cache-dir \
+        "setuptools<80" "numpy==1.26.4" "mujoco>=3.3,<4" "trimesh>=4.5" coacd \
+        "scipy<1.15" lxml pyyaml imageio imageio-ffmpeg rtree
+
+ENV MUJOCO_GL=egl
+USER admin

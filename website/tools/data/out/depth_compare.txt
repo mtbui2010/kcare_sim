@@ -1,0 +1,6 @@
+head: DepthModel 86 ms
+wrist: DepthModel 70 ms
+REAL D405: invalid 0.24  150mm sd 1.2  500mm sd 1.9  800mm sd 7.2  1500mm sd 28.0
+SIM  D405 model: invalid 0.28  150mm sd 1.4  300mm sd 149.6  500mm sd 1.1  800mm sd 8.8  1500mm sd 22.9
+SIM  D405 perfect: invalid 0.02  150mm sd 1.6  300mm sd 148.6  500mm sd 0.0  800mm sd 8.4  1500mm sd 20.8
+-> /sim/out/real_compare/depth_compare.jpg

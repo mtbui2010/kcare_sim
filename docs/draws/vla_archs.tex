@@ -1,0 +1,42 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% Four ways to turn (images, text, state) into robot actions.
+\begin{tikzpicture}[node distance=3mm,
+  io/.style={draw=violet!70!black,fill=violet!8,rounded corners=2pt,font=\sffamily\scriptsize,align=center,inner sep=3pt,text width=#1},
+  io/.default=24mm,
+  big/.style={draw=accent,fill=keybg,rounded corners=3pt,font=\sffamily\scriptsize,align=center,inner sep=3pt,text width=#1},
+  sm/.style={draw=teal!70!black,fill=teal!8,rounded corners=3pt,font=\sffamily\scriptsize,align=center,inner sep=3pt,text width=#1},
+  ttl/.style={font=\sffamily\small\bfseries,anchor=west}]
+  % A
+  \node[ttl] at (0,0) {A. Policy chuyên biệt (ACT, Diffusion Policy, RT-1)};
+  \node[io] (a1) at (1.6,-1) {ảnh + trạng thái\\(+ lệnh)};
+  \node[sm=30mm, right=6mm of a1] (a2) {mạng nhỏ học từ đầu\\(CNN/ViT + transformer)};
+  \node[io=26mm, right=6mm of a2] (a3) {chuỗi hành động};
+  \draw[arr] (a1)--(a2); \draw[arr] (a2)--(a3);
+  \node[lbl,right=3mm of a3,text width=38mm,align=left] {+ nhanh, chính xác trong 1 tác vụ\\-- không hiểu ngôn ngữ/vật mới};
+  % B
+  \node[ttl] at (0,-2.1) {B. VLM + hành động là token (RT-2, OpenVLA, $\pi_0$-FAST)};
+  \node[io] (b1) at (1.6,-3.1) {ảnh + lệnh chữ};
+  \node[big=30mm, right=6mm of b1] (b2) {VLM (tỷ tham số)\\sinh \emph{từng} token};
+  \node[io=26mm, right=6mm of b2] (b3) {``128 45 200 \dots''\\$\rightarrow$ giải mã thành số};
+  \draw[arr] (b1)--(b2); \draw[arr] (b2)--(b3);
+  \node[lbl,right=3mm of b3,text width=38mm,align=left] {+ thừa hưởng hiểu biết web\\-- chậm, hành động bị lượng tử hoá};
+  % C
+  \node[ttl] at (0,-4.2) {C. VLM + action expert liên tục ($\pi_0$, SmolVLA, GR00T) --- \emph{dự án đang dùng}};
+  \node[io] (c1) at (1.6,-5.2) {ảnh + lệnh chữ\\+ trạng thái};
+  \node[big=30mm, right=6mm of c1] (c2) {VLM: đặc trưng\\cảnh + lệnh};
+  \node[sm=26mm, right=6mm of c2] (c3) {action expert\\flow matching};
+  \node[io=20mm, right=4mm of c3] (c4) {50 bước × 8};
+  \draw[arr] (c1)--(c2); \draw[arr] (c2)--(c3); \draw[arr] (c3)--(c4);
+  \node[lbl,below=1mm of c3,text width=50mm] {+ mượt, nhanh, đa phương án\;\; -- cần dữ liệu robot để tinh chỉnh};
+  % D
+  \node[ttl] at (0,-6.7) {D. Phân tầng / world action model (Helix, GR00T, $\pi_{0.5}$, DreamZero)};
+  \node[io] (d1) at (1.6,-7.7) {ảnh + lệnh dài};
+  \node[big=30mm, right=6mm of d1] (d2) {System 2 (chậm, 1--10 Hz)\\lập kế hoạch, bước con,\\hoặc tưởng tượng video};
+  \node[sm=26mm, right=11mm of d2] (d3) {System 1 (nhanh,\\30--200 Hz)\\điều khiển};
+  \node[io=20mm, right=4mm of d3] (d4) {hành động};
+  \draw[arr] (d1)--(d2); \draw[arr] (d2)--node[lbl,above]{mục tiêu} (d3); \draw[arr] (d3)--(d4);
+  \node[lbl,below=1mm of d3,text width=56mm] {+ tác vụ dài, tổng quát hơn\;\; -- phức tạp, tốn tính toán};
+\end{tikzpicture}
+\end{document}

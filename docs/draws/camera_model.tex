@@ -1,0 +1,21 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% camera_model.py: what the real sensor + driver add on top of MuJoCo's ideal pinhole render.
+\begin{tikzpicture}[node distance=5mm and 5mm]
+  \node[sim=22mm] (mj) {Ảnh MuJoCo\\\scriptsize pinhole lý tưởng\\\scriptsize fx, fy, cx, cy thật};
+  \node[blk=22mm, right=of mj] (dist) {1. Méo ống kính\\\scriptsize k1 k2 p1 p2 k3};
+  \node[blk=22mm, right=of dist] (ae) {2. Tự cân sáng\\\scriptsize AE về độ sáng TB thật};
+  \node[blk=22mm, right=of ae] (col) {3. Màu\\\scriptsize độ bão hoà + cân bằng trắng};
+  \node[blk=22mm, right=of col] (noise) {4. Nhiễu cảm biến\\\scriptsize $\sigma^2 = aI + b$};
+  \node[blk=22mm, right=of noise] (jpg) {5. Nén JPEG\\\scriptsize Femto 75, D405 95};
+  \node[data=22mm, right=of jpg] (out) {Ảnh ghi vào\\\scriptsize dataset};
+  \foreach \a/\b in {mj/dist,dist/ae,ae/col,col/noise,noise/jpg,jpg/out} \draw[arr] (\a) -- (\b);
+  \node[real=60mm, below=7mm of col] (fit) {Ảnh thật từ robot (chỉ đọc)\\\scriptsize \code{estimate\_camera.py}, \code{calibrate\_color.py}};
+  \draw[arr,dashed] (fit.north west) -- node[lbl,left=2pt]{đo tham số} (ae.south);
+  \draw[arr,dashed] (fit.north) -- (col.south);
+  \draw[arr,dashed] (fit.north east) -- (noise.south);
+  \draw[arr,dashed] (fit.east) -| (jpg.south);
+  \node[lbl, above=2mm of ae.north east] {mỗi episode: AE, cân bằng trắng, chất lượng JPEG lệch ngẫu nhiên một chút};
+\end{tikzpicture}
+\end{document}

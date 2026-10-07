@@ -1,0 +1,4 @@
+[ 4272s] ep  47 FAIL opened   0.0 cm   success so far 8% (48)
+[ 4370s] ep  48 FAIL opened   8.7 cm   success so far 8% (49)
+[ 4461s] ep  49 FAIL opened   0.0 cm   success so far 8% (50)
+success rate 8.0% over 50 episodes, mean opened 2.9 cm -> /nas/checkpoints/smolvla_open_drawer_real500_multidrawer_20260928/eval/020000_house_results.json

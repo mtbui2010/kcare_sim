@@ -1,0 +1,94 @@
+site_name: kcare-sim
+site_description: A simulated KETI apartment where the kcare robot runs its real software stack, and the place its VLA open-drawer policy is trained and tested.
+site_url: https://mtbui2010.github.io/kcare_sim/
+repo_url: https://github.com/mtbui2010/kcare_sim
+repo_name: mtbui2010/kcare_sim
+edit_uri: edit/main/website/docs/
+copyright: kcare-sim is Apache-2.0.
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - search.suggest
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra_css:
+  - assets/extra.css
+extra_javascript:
+  - assets/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guides:
+      - guides/index.md
+      - Run the house with kcare: guides/house-and-kcare.md
+      - Generate open-drawer data: guides/open-drawer-data.md
+      - Train and evaluate a policy: guides/train-and-evaluate.md
+      - Run the VLA through kcare: guides/vla-through-kcare.md
+      - Edit the house: guides/edit-the-house.md
+  - How it works:
+      - how-it-works/index.md
+      - Code map: how-it-works/code-map.md
+      - Proving it is correct: how-it-works/correctness.md
+  - Learn:
+      - learn/index.md
+      - 1. Real robot software in a simulator: learn/01-real-software.md
+      - 2. A scene from a floor plan and photos: learn/02-scene-from-photos.md
+      - 3. Making renders look like the cameras: learn/03-camera-model.md
+      - 4. Depth sensors are not perfect: learn/04-depth.md
+      - 5. Demonstrations from a scripted expert: learn/05-expert-and-randomisation.md
+      - 6. VLA policies and action chunks: learn/06-vla.md
+      - 7. Evaluating without fooling yourself: learn/07-evaluation.md
+  - Reference:
+      - ROS 2 and kcare API: reference/api.md
+      - Command line: reference/cli.md
+      - Configuration: reference/configuration.md

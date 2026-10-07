@@ -1,0 +1,1 @@
+INFO ot_train.py:435 step:2K smpl:154K ep:457 epch:0.46 loss:0.006 grdn:0.201 lr:8.7e-05 updt_s:1.406 data_s:0.036

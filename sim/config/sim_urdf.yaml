@@ -1,0 +1,70 @@
+# How build_sim_urdf.py turns the kinematic kaair URDF into a physics model.
+#
+# Everything here that is marked `source: estimate` is a placeholder until it is
+# weighed / read off the CAD. They only have to be plausible for position-
+# controlled manipulation (the arm uses gravcomp in MuJoCo, like the real xArm
+# controller), but finger and object masses do matter for contact.
+
+# ── Mass [kg] of links the kaair description leaves without <inertial> ───────
+# Inertia tensor and COM are computed from the link's geometry (convex hull of
+# its visual mesh) scaled to this mass. xArm7 links already carry the vendor's
+# inertials and are left untouched.
+masses:
+  # mobile base / lift column — the base is fixed in the manipulation sim, so
+  # these only need to be non-zero.
+  slamtec_base_link:  {mass: 30.0,  source: estimate}
+  base_link:          {mass: 30.0,  source: estimate}   # clober variant (former_description)
+  lift_base_link:     {mass: 12.0,  source: estimate}
+  lift_link:          {mass: 4.0,   source: estimate}   # carriage the arm mounts on
+  # pan-tilt head (Dynamixel)
+  head_base:          {mass: 0.40,  source: estimate}
+  head_link1:         {mass: 0.10,  source: estimate}
+  head_link2:         {mass: 0.15,  source: estimate}
+  head_link3:         {mass: 0.10,  source: estimate}
+  femto_base_link:    {mass: 0.44,  source: "Orbbec Femto Bolt datasheet (~440 g)"}
+  # tool: hand flange + Koras gripper + D405 bracket
+  hand_base_link:     {mass: 0.20,  source: estimate}
+  vision_frame_link:  {mass: 0.08,  source: estimate}
+  gripper_body_link:  {mass: 0.80,  source: estimate}
+  left_finger_tip:    {mass: 0.04,  source: estimate}
+  right_finger_tip:   {mass: 0.04,  source: estimate}
+  camera_link:        {mass: 0.06,  source: "Intel D405 datasheet (~60 g)"}
+  # geometry-less link on a moving joint: needs a tiny mass to be simulable
+  virtual_gripper_link: {mass: 0.005, source: "numerical (virtual joint)"}
+  S2RPLidar_frame:    {mass: 0.19,  source: estimate}
+  left_wheel:         {mass: 1.0,   source: estimate}
+  right_wheel:        {mass: 1.0,   source: estimate}
+
+# Links with no geometry and no entry above get this (fixed-joint frames).
+# They are welded to their parent, so it only avoids zero-mass warnings.
+frame_mass: 0.0
+
+# ── Collision geometry ────────────────────────────────────────────────────────
+# keep   : use the URDF's collision as-is (primitives stay primitives)
+# hull   : one convex hull of the visual mesh
+# coacd  : approximate convex decomposition (CoACD) — for contact-critical parts
+# none   : no collision
+collision_default: hull
+collision:
+  left_finger_tip:        {mode: coacd, threshold: 0.03, max_convex_hull: 8}
+  right_finger_tip:       {mode: coacd, threshold: 0.03, max_convex_hull: 8}
+  gripper_body_link:      {mode: coacd, threshold: 0.05, max_convex_hull: 12}
+  lift_base_link:         {mode: coacd, threshold: 0.08, max_convex_hull: 12}
+  tooltip_collision_link: {mode: none}   # MoveIt-only padding box around the fingers
+  slamtec_base_link:      {mode: keep}   # already a box
+  left_wheel:             {mode: keep}
+  right_wheel:            {mode: keep}
+  lf_caster: {mode: keep}
+  rf_caster: {mode: keep}
+  lb_caster: {mode: keep}
+  rb_caster: {mode: keep}
+
+# ── Joint fixes ───────────────────────────────────────────────────────────────
+joints:
+  # Fingers mimic virtual_gripper_joint ×0.5, so their velocity limit must be
+  # half the virtual joint's (0.05 m/s → 0.025), not 0.005 as in tool.urdf.xacro.
+  left_finger_tip_joint:  {velocity: 0.025}
+  right_finger_tip_joint: {velocity: 0.025}
+
+# Tags removed from the output (hardware-only).
+strip_tags: [ros2_control, gazebo, transmission]

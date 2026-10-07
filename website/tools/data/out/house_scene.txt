@@ -1,0 +1,1 @@
+-> /sim/mjcf/house.xml   9 spots, 16 objects

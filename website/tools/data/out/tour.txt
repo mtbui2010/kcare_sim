@@ -1,0 +1,10 @@
+| 0 | desk@study room | 25 OK | orange: found | 3 | 0.71 | 15.4 |
+| 1 | shelf@kitchen | 26 OK | cracker box: found | 1 | 0.75 | 4.5 |
+| 2 | counter@kitchen | 17 OK | mustard bottle: found | 1 | 0.52 | 12.7 |
+| 3 | dining table@kitchen | 19 OK | bowl: NOT found | 2 | - | - |
+| 4 | washer@laundry room | 16 OK | bleach bottle: found | 1 | 0.41 | 96.3 |
+| 5 | chest@bedroom | 22 OK | red cup: found | 1 | 0.86 | 6.5 |
+| 6 | stool@bedroom | 15 OK | tennis ball: found | 1 | 0.45 | 6.6 |
+| 7 | shelf@restroom | 33 OK | spray bottle: found | 1 | 0.35 | 64.8 |
+| - | home | 21 OK | | | | | 
+-> /sim/out/house/tour

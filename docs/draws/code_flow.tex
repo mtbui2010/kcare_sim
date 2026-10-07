@@ -1,0 +1,24 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% Which script reads/writes what.
+\begin{tikzpicture}[node distance=5mm and 7mm,
+  f/.style={draw=gray!60,fill=gray!8,font=\ttfamily\scriptsize,rounded corners=2pt,inner sep=3pt,align=center}]
+  \node[f] (c1) {config/sim\_urdf.yaml\\config/mjcf.yaml};
+  \node[f, below=of c1] (c2) {config/task\_open\_drawer.yaml\\config/randomization.yaml};
+  \node[blk=34mm, right=12mm of c1] (b) {\ttfamily build\_sim\_urdf.py\\urdf\_to\_mjcf.py};
+  \node[blk=34mm, right=12mm of c2] (g) {\ttfamily gen\_dataset.py};
+  \node[blk=38mm, below=of g] (lib) {\ttfamily drawer\_ready.py\\cabinet.py\\expert\_open\_drawer.py\\randomize.py};
+  \node[f, right=12mm of b] (o1) {mjcf/kaair\_slamtec.xml};
+  \node[f, right=12mm of g] (o2) {/nas/datasets/…};
+  \node[blk=30mm, right=of o2] (tr) {\ttfamily lerobot-train};
+  \node[f] (o3) at (tr |- lib) {/nas/checkpoints/…};
+  \node[blk=30mm] (ev) at (o2 |- lib) {\ttfamily eval\_policy.py};
+  \draw[arr] (c1) -- (b); \draw[arr] (b) -- (o1);
+  \draw[arr] (c2) -- (g); \draw[arr] (g) -- (o2); \draw[arr] (lib) -- (g);
+  \draw[arr] (o1.south) -- ++(0,-4mm) -| (g.north);
+  \draw[arr] (o2) -- (tr); \draw[arr] (tr) -- (o3); \draw[arr] (o3) -- (ev);
+  \node[lbl,below=1mm of ev] {chạy policy trong sim};
+  \draw[arr] (lib) -- (ev);
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,4 @@
+[   136s] w4 OK   opened 24.9 cm  (118.2 s)   kept 1/500, tried 1
+[   138s] w5 OK   opened 24.9 cm  (121.4 s)   kept 2/500, tried 2
+[   142s] w1 OK   opened 24.9 cm  (121.9 s)   kept 3/500, tried 3
+[   143s] w7 OK   opened 24.9 cm  (122.4 s)   kept 4/500, tried 4

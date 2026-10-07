@@ -1,0 +1,16 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% Generic VLA (SmolVLA / pi0 family): VLM backbone + flow-matching action expert.
+\begin{tikzpicture}[node distance=5mm and 13mm]
+  \node[data=26mm] (img) {Ảnh camera\\\scriptsize đầu, tay};
+  \node[data=26mm, below=of img] (txt) {Lệnh ngôn ngữ\\\scriptsize "open drawer"};
+  \node[data=26mm, below=14mm of txt] (st) {Trạng thái\\\scriptsize 8 số};
+  \node[blk=34mm, right=of txt, minimum height=34mm] (vlm) {Mô hình thị giác–ngôn ngữ (VLM)\\[3pt]\scriptsize "hiểu" cảnh và lệnh\\(được huấn luyện trước trên dữ liệu lớn)};
+  \node[sim=34mm, right=of vlm, minimum height=34mm] (ae) {Action expert\\[3pt]\scriptsize flow matching:\\khử nhiễu từng bước\\thành chuỗi hành động};
+  \node[data=30mm, right=of ae] (chunk) {Chuỗi hành động\\\scriptsize $H{=}50$ bước $\times$ 8 số\\(action chunk)};
+  \draw[arr] (img) -- (vlm); \draw[arr] (txt) -- (vlm); \draw[arr] (st.east) -| (ae.south);
+  \draw[arr] (vlm) -- node[lbl,above]{đặc trưng} (ae);
+  \draw[arr] (ae) -- (chunk);
+\end{tikzpicture}
+\end{document}

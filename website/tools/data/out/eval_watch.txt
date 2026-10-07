@@ -1,0 +1,8 @@
+[  799s] ep   8 OK   opened  22.1 cm   success so far 67% (9)
+[  882s] ep   9 OK   opened  21.9 cm   success so far 70% (10)
+[  994s] ep  10 FAIL opened  -1.1 cm   success so far 64% (11)
+[ 1087s] ep  11 OK   opened  22.9 cm   success so far 67% (12)
+[ 1210s] ep  12 FAIL opened  -0.8 cm   success so far 62% (13)
+[ 1334s] ep  13 FAIL opened  -0.0 cm   success so far 57% (14)
+[ 1408s] ep  14 OK   opened  23.3 cm   success so far 60% (15)
+[ 1492s] ep  15 OK   opened  22.7 cm   success so far 62% (16)

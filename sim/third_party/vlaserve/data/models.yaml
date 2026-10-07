@@ -1,0 +1,24 @@
+# Bundled aliases. Any LeRobot-format checkpoint also works by HF repo id or local path without
+# an entry here; an entry only adds a short name, a pinned revision and a licence.
+#
+# `license` is what we know about the WEIGHTS. Leave it out rather than guess: an unknown licence
+# is reported as unknown, and PaliGemma-based policies are detected from their config.
+#
+# Add your own in ~/.config/vla-serve/models.yaml (same format; it overrides these).
+
+models:
+  pi05-libero:
+    source: lerobot/pi05_libero_finetuned
+    description: pi0.5 fine-tuned on LIBERO (2 cameras 256x256, 8-d state, 7-d action, chunk 50)
+    profile: libero
+
+  keti-pi05-openarm-handover:
+    source: KETI-IRRC/pi05_openarm_handover_v0_clean_alpha2prime
+    description: >-
+      KETI pi0.5 on bimanual OpenArm, handover (3 cameras, 16-d state/action, relative actions,
+      chunk 30). Saved with LeRobot 0.5.x; loads through vlaserve.compat.
+    profile: openarm-bimanual
+
+  smolvla-base:
+    source: lerobot/smolvla_base
+    description: SmolVLA base (450M). Pretrained, not fine-tuned for any robot; fine-tune first.

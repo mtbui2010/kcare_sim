@@ -1,0 +1,5 @@
+[   136s] w4 OK   opened 24.9 cm  (118.2 s)   kept 1/500, tried 1
+[   138s] w5 OK   opened 24.9 cm  (121.4 s)   kept 2/500, tried 2
+[   142s] w1 OK   opened 24.9 cm  (121.9 s)   kept 3/500, tried 3
+...
+done in 7684s: 500 episodes kept of 502 tried (100% success) -> /nas/datasets/kaair_sim_open_drawer_house500

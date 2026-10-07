@@ -1,0 +1,22 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% How the kinematic URDF becomes a checked physics model (make all).
+\begin{tikzpicture}[node distance=6mm and 13mm]
+  \node[blk=26mm] (x) {xacro\\\scriptsize robot.urdf.xacro};
+  \node[blk=26mm, right=of x] (raw) {URDF thô\\\scriptsize urdf/raw/};
+  \node[sim=40mm, right=of raw] (su) {URDF vật lý\\\scriptsize urdf/kaair\_slamtec\_sim.urdf};
+  \node[sim=26mm, right=of su] (mj) {MJCF\\\scriptsize mjcf/};
+  \node[blk=28mm, right=of mj] (ck) {Kiểm tra\\\scriptsize out/slamtec/report.json};
+  \draw[arr] (x) -- node[lbl,above]{flatten} (raw);
+  \draw[arr] (raw) -- node[lbl,above]{build} (su);
+  \draw[arr] (su) -- node[lbl,above]{convert} (mj);
+  \draw[arr] (mj) -- node[lbl,above]{check} (ck);
+  \node[lbl,below=2mm of su,text width=34mm,align=left]
+    {+ khối lượng, quán tính\\+ collision lồi (hull/CoACD)\\+ sửa giới hạn khớp\\– bỏ thẻ phần cứng};
+  \node[lbl,below=2mm of mj,text width=30mm,align=left]
+    {+ actuator vị trí (11)\\+ ràng buộc 2 ngón\\+ bù trọng lực\\+ 2 camera, keyframe};
+  \node[lbl,below=2mm of ck,text width=30mm,align=left]
+    {FK khớp URDF gốc\\giữ tư thế 3 s\\đáp ứng bước\\gắp thử khối 4 cm};
+\end{tikzpicture}
+\end{document}

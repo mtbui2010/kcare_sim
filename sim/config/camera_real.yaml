@@ -1,0 +1,61 @@
+head:
+  width: 1280
+  height: 720
+  fx: 746.1448364257812
+  fy: 746.0178833007812
+  cx: 629.9429931640625
+  cy: 356.381591796875
+  distortion:
+  - 0.07080985605716705
+  - -0.0981212854385376
+  - -0.00042632041731849313
+  - -0.0002492078929208219
+  - 0.039594437927007675
+  jpeg_quality: 75
+  noise_var_a:
+  - 0.0
+  - 0.0
+  - 0.0
+  noise_var_b:
+  - 1.2668
+  - 0.9333
+  - 1.342
+  measured_mean_std: 0.98
+  color_gain:
+  - 0.994
+  - 1.001
+  - 1.011
+  ae_target: 132.5
+  saturation: 1.363
+  color_source: calibrate_color.py at the recorded pose (2026-09-28 capture)
+wrist:
+  width: 848
+  height: 480
+  fx: 433.2934265136719
+  fy: 432.1043701171875
+  cx: 427.1775207519531
+  cy: 243.11767578125
+  distortion:
+  - -0.055107735097408295
+  - 0.06633316725492477
+  - 3.7639962101820856e-05
+  - 0.0003969227254856378
+  - -0.022845152765512466
+  jpeg_quality: 95
+  noise_var_a:
+  - 0.0
+  - 0.00162
+  - 0.00164
+  noise_var_b:
+  - 3.5323
+  - 2.1316
+  - 3.4193
+  measured_mean_std: 1.663
+  color_gain:
+  - 1.105
+  - 0.974
+  - 0.857
+  ae_target: 118.03
+  saturation: 3.267
+  color_source: calibrate_color.py at the recorded pose (2026-09-28 capture)
+_source: /nas/real/20260928_scene1

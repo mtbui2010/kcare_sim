@@ -1,0 +1,9 @@
+head: {'ae_target': 150.64, 'color_gain': [0.957, 1.016, 1.03], 'saturation': 2.14}   (office: gain [0.994, 1.001, 1.011], saturation 1.363)
+wrist: {'ae_target': 129.92, 'color_gain': [1.008, 0.996, 0.998], 'saturation': 3.65}   (office: gain [1.105, 0.974, 0.857], saturation 3.267)
+head  wood  real [135. 119.  99.]  sim before [120. 112. 101.]  after [123. 112.  91.]
+head  floor real [168. 176. 175.]  sim before [166. 166. 166.]  after [159. 169. 171.]
+head  white real [165. 178. 184.]  sim before [155. 155. 155.]  after [149. 158. 160.]
+wrist wood  real [113.  89.  62.]  sim before [94. 88. 81.]  after [108.  85.  59.]
+wrist white real [190. 193. 198.]  sim before [178. 178. 176.]  after [180. 178. 173.]
+wrist floor real [156. 150. 144.]  sim before [154. 154. 153.]  after [156. 153. 152.]
+-> /sim/config/camera_home.yaml

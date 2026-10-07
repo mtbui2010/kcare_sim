@@ -1,0 +1,25 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% Big picture: real robot -> sim model -> data -> VLA -> back to the robot.
+\begin{tikzpicture}[node distance=9mm and 14mm]
+  \node[real=30mm] (ros) {Robot thật\\\scriptsize keti\_assist\_ai\_robot\_ros2};
+  \node[blk=30mm, right=of ros] (urdf) {Mô tả robot\\\scriptsize URDF (xacro)};
+  \node[sim=30mm, right=of urdf] (mj) {Mô hình vật lý\\\scriptsize MuJoCo (MJCF)};
+  \node[sim=30mm, below=of mj] (task) {Tác vụ + expert\\\scriptsize mở ngăn kéo};
+  \node[data=30mm, left=of task] (ds) {Dataset\\\scriptsize LeRobot, trên NAS};
+  \node[blk=30mm, left=of ds] (vla) {Huấn luyện VLA\\\scriptsize SmolVLA / $\pi_{0.5}$};
+  \node[sim=30mm, below=of vla] (eval) {Đánh giá trong sim\\\scriptsize tỉ lệ thành công};
+  \node[real=30mm, right=of eval] (deploy) {Chạy trên robot\\\scriptsize skill \code{vla::} (kcare)};
+  \node[data=30mm, right=of deploy] (real) {Dữ liệu thật\\\scriptsize data\_collect\_kcare};
+  \draw[arr] (ros) -- (urdf);
+  \draw[arr] (urdf) -- node[lbl,above=1pt]{+ vật lý} (mj);
+  \draw[arr] (mj) -- (task);
+  \draw[arr] (task) -- node[lbl,above=1pt]{ghi 30 Hz} (ds);
+  \draw[arr] (ds) -- (vla);
+  \draw[arr] (vla) -- (eval);
+  \draw[arr] (eval) -- node[lbl,above=1pt]{đạt} (deploy);
+  \draw[arr] (deploy) -- node[lbl,above=1pt]{thu thêm} (real);
+  \draw[arr,dashed] (real.north) -- node[lbl,right=1pt]{co-training} (real.north |- ds.south east) -- (ds.south east);
+\end{tikzpicture}
+\end{document}

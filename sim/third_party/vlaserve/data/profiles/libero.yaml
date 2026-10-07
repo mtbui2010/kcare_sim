@@ -1,0 +1,10 @@
+name: libero
+fps: 20
+cameras:
+  image: agentview_image
+  image2: robot0_eye_in_hand_image
+state_dim: 8
+action_dim: 7
+notes: >-
+  LIBERO simulation (Franka Panda). Camera names are LIBERO's observation keys. fps 20 is
+  robosuite's default control_freq; check the env config you actually run.

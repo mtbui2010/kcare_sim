@@ -1,0 +1,12 @@
+name: kaair
+fps: 30
+# Robot-side names are kaair_sim's MuJoCo cameras; on the real robot use the camera driver's names
+# (femto color on the head, D405 color on the wrist).
+cameras:
+  head: head_rgb
+  wrist: wrist_rgb
+state_dim: 8
+action_dim: 8
+notes: >-
+  kaair (xArm7 + Koras gripper on a lift) as in kaair_sim's open-drawer task: 7 arm joints +
+  gripper width, 30 Hz, head 1280x720 resized to 848x480 and wrist 848x480.

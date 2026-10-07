@@ -1,0 +1,463 @@
+{
+ "_comment": "kcare-sim tutorial. Paths relative to this file. out/*.txt are captured from real runs; tour_clip.mp4 / vla_clip.mp4 + overlays come from scripts/house_record_grid.py through kcare's HTTP API.",
+ "output": "tutorial.mp4",
+ "video": {
+  "width": 1280,
+  "height": 720,
+  "fps": 30,
+  "lead": 0.4,
+  "tail": 0.7,
+  "fade": 0.3,
+  "crf": 26
+ },
+ "voice": {
+  "dir": "voice",
+  "sample_rate": 24000
+ },
+ "replace": {
+  "/nas/checkpoints/smolvla_open_drawer_real500_multidrawer_20260928/eval/020000_house_results.json": ".../020000_house_results.json",
+  "/nas/datasets/kaair_sim_open_drawer_house500": "$DATA/house500"
+ },
+ "display_map": [
+  [
+   "kay care sim",
+   "kcare-sim"
+  ],
+  [
+   "Kay care sim",
+   "kcare-sim"
+  ],
+  [
+   "kay care",
+   "kcare"
+  ],
+  [
+   "Kay care",
+   "kcare"
+  ],
+  [
+   "Moo Joe Co",
+   "MuJoCo"
+  ],
+  [
+   "v l a serve",
+   "vla-serve"
+  ],
+  [
+   "Small V L A",
+   "SmolVLA"
+  ],
+  [
+   "ROS two",
+   "ROS 2"
+  ],
+  [
+   "vision language action",
+   "vision-language-action"
+  ],
+  [
+   "home care",
+   "home-care"
+  ],
+  [
+   "fine tuned",
+   "fine-tuned"
+  ],
+  [
+   "twenty eight point six centimeters",
+   "28.6 cm"
+  ],
+  [
+   "eighteen point seven seconds",
+   "18.7 s"
+  ],
+  [
+   "one point four seconds",
+   "1.4 s"
+  ],
+  [
+   "two centimeters",
+   "2 cm"
+  ],
+  [
+   "ten by eight meters",
+   "10 × 8 m"
+  ],
+  [
+   "eighty centimeters",
+   "80 cm"
+  ],
+  [
+   "thirty hertz",
+   "30 Hz"
+  ],
+  [
+   "ninety five percent",
+   "95 %"
+  ],
+  [
+   "eight percent",
+   "8 %"
+  ],
+  [
+   "forty four of fifty",
+   "44 of 50"
+  ],
+  [
+   "four of fifty",
+   "4 of 50"
+  ],
+  [
+   "twenty six of fifty",
+   "26 of 50"
+  ],
+  [
+   "four drawers out of fifty",
+   "4 drawers out of 50"
+  ],
+  [
+   "two thousand five hundred",
+   "2,500"
+  ],
+  [
+   "Five hundred episodes",
+   "500 episodes"
+  ],
+  [
+   "fifty joint targets",
+   "50 joint targets"
+  ],
+  [
+   "fifty scenes",
+   "50 scenes"
+  ],
+  [
+   "about five minutes",
+   "about 5 minutes"
+  ],
+  [
+   "three times faster",
+   "3× faster"
+  ],
+  [
+   "two hours",
+   "2 hours"
+  ],
+  [
+   "Step one.",
+   "Step 1."
+  ],
+  [
+   "Step two.",
+   "Step 2."
+  ],
+  [
+   "Step three.",
+   "Step 3."
+  ],
+  [
+   "Step four.",
+   "Step 4."
+  ],
+  [
+   "Step five.",
+   "Step 5."
+  ],
+  [
+   "Step six.",
+   "Step 6."
+  ]
+ ],
+ "scenes": [
+  {
+   "id": "s01_title",
+   "type": "title",
+   "title": "kcare-sim",
+   "title_size": 84,
+   "y": 200,
+   "subtitle_lines": [
+    "A simulated home where a care robot runs its real software",
+    "and learns to open drawers with a VLA policy."
+   ],
+   "note": "Every output and number shown is real — recorded October 2026 on one RTX A6000."
+  },
+  {
+   "id": "s02_problem",
+   "type": "two_column",
+   "heading": "Why simulate the robot at home",
+   "left_label": "On the real robot",
+   "right_label": "kcare-sim",
+   "rows": [
+    [
+     "one robot, a person next to every run",
+     "simulated robots, unattended"
+    ],
+    [
+     "office policy: 8 % of drawers at home",
+     "the house, from floor plan + photos"
+    ],
+    [
+     "renders look nothing like cameras",
+     "camera models fitted to the robot"
+    ],
+    [
+     "a sim needs its own robot software",
+     "the robot's kcare code, unchanged"
+    ]
+   ]
+  },
+  {
+   "id": "s03_overview",
+   "type": "diagram",
+   "heading": "Three parts",
+   "boxes": [
+    {
+     "rect": [
+      40,
+      170,
+      420,
+      470
+     ],
+     "title": "MuJoCo house",
+     "lines": [
+      "apartment + robot physics",
+      "robot's ROS 2 interfaces",
+      "camera + depth models",
+      "",
+      "$ house_bridge.py"
+     ]
+    },
+    {
+     "rect": [
+      450,
+      170,
+      830,
+      470
+     ],
+     "title": "kcare_robot",
+     "lines": [
+      "the robot's own software",
+      "dashboard, skills",
+      "move, find, vla_drawer_open",
+      "",
+      "$ HTTP :8001"
+     ]
+    },
+    {
+     "rect": [
+      860,
+      170,
+      1240,
+      470
+     ],
+     "title": "vla-serve (GPU)",
+     "lines": [
+      "trained SmolVLA policy",
+      "images + joints + text in",
+      "50 joint targets out",
+      "",
+      "$ HTTP :11450"
+     ]
+    }
+   ],
+   "arrows": [
+    {
+     "from": [
+      450,
+      330
+     ],
+     "to": [
+      420,
+      330
+     ],
+     "label": "ROS 2",
+     "color": "accent",
+     "at": 7,
+     "label_xy": [
+      395,
+      300
+     ]
+    },
+    {
+     "from": [
+      860,
+      330
+     ],
+     "to": [
+      830,
+      330
+     ],
+     "label": "HTTP",
+     "color": "accent",
+     "at": 11,
+     "label_xy": [
+      810,
+      300
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s04_house",
+   "type": "image",
+   "step": "Step 1",
+   "heading": "The house, from a floor plan and photos",
+   "image": "plan_vs_sim.png",
+   "box": [
+    48,
+    115,
+    1232,
+    600
+   ]
+  },
+  {
+   "id": "s05_tour",
+   "type": "video",
+   "step": "Step 2",
+   "heading": "The robot's software drives the simulated robot",
+   "video": "tour_clip.mp4",
+   "layout": "side",
+   "info": [
+    "kcare skills over HTTP,",
+    "as from the dashboard",
+    "",
+    "clip {t:4.1f} s  (3x)"
+   ],
+   "data": "tour_clip_overlay.json",
+   "speed": 1.0
+  },
+  {
+   "id": "s06_cameras",
+   "type": "image",
+   "step": "Step 3",
+   "heading": "Renders that look like the robot's cameras",
+   "image": "calib_home.jpg",
+   "box": [
+    48,
+    115,
+    1232,
+    600
+   ]
+  },
+  {
+   "id": "s07_depth",
+   "type": "image",
+   "heading": "Depth: real D405 vs perfect render vs simulated sensor",
+   "image": "depth_compare.jpg",
+   "box": [
+    48,
+    115,
+    1232,
+    600
+   ]
+  },
+  {
+   "id": "s08_data",
+   "type": "terminal",
+   "step": "Step 4",
+   "heading": "500 demonstrations from a scripted expert",
+   "pace": 2.4,
+   "size": 15,
+   "ok_words": [
+    "OK",
+    "100% success"
+   ],
+   "commands": [
+    {
+     "cmd": "python3 scripts/gen_dataset.py --n 500 --workers 8 --task task_open_drawer_house.yaml --camera-model",
+     "output_file": "out/gen.txt"
+    }
+   ]
+  },
+  {
+   "id": "s09_train",
+   "type": "terminal",
+   "step": "Step 5",
+   "heading": "Train SmolVLA, evaluate on 50 fixed scenes",
+   "pace": 2.0,
+   "size": 15,
+   "bad_words": [
+    "FAIL"
+   ],
+   "commands": [
+    {
+     "cmd": "lerobot-train --policy.path=$OFFICE_CKPT --dataset.repo_id=officehouse1000 --steps=10000",
+     "output_file": "out/train.txt"
+    },
+    {
+     "cmd": "python3 scripts/eval_policy.py --ckpt $OFFICE_CKPT --n 50 --tag house --camera-model",
+     "output_file": "out/eval.txt"
+    }
+   ]
+  },
+  {
+   "id": "s10_vla",
+   "type": "video",
+   "step": "Step 6",
+   "heading": "kcare calls the VLA: open drawer",
+   "video": "vla_clip.mp4",
+   "layout": "side",
+   "info": [
+    "kcare -> /drawer/open",
+    "-> vla-serve (SmolVLA)",
+    "",
+    "clip {t:4.1f} s  (real time)"
+   ],
+   "data": "vla_clip_overlay.json",
+   "speed": 1.0
+  },
+  {
+   "id": "s11_results",
+   "type": "results",
+   "heading": "Does house training help?",
+   "highlight_box": {
+    "title": "VLA through kcare, end to end",
+    "text": "drawer opened 28.6 cm in 18.7 s · 14 action chunks · 0 stalls"
+   },
+   "rows_title": "Closed loop, 50 fixed scenes per row",
+   "rows_at": 4,
+   "axis_min": 0,
+   "rows": [
+    {
+     "label": "office policy · office",
+     "sub": "20k steps",
+     "k": 44,
+     "n": 50,
+     "highlight": false
+    },
+    {
+     "label": "office policy · house",
+     "sub": "same checkpoint",
+     "k": 4,
+     "n": 50,
+     "highlight": false
+    },
+    {
+     "label": "+ house data · house",
+     "sub": "2.5k more steps",
+     "k": 26,
+     "n": 50
+    }
+   ]
+  },
+  {
+   "id": "s12_end",
+   "type": "end",
+   "title": "kcare-sim",
+   "links": [
+    [
+     "Docs, guides and course",
+     "mtbui2010.github.io/kcare_sim"
+    ],
+    [
+     "Code",
+     "github.com/mtbui2010/kcare_sim"
+    ],
+    [
+     "Policy server",
+     "github.com/mtbui2010/vla-serve"
+    ]
+   ]
+  }
+ ]
+}

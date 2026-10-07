@@ -1,0 +1,21 @@
+\documentclass[border=4pt]{standalone}
+\input{_style}
+\begin{document}
+% Expert phases on a time axis with the gripper command.
+\begin{tikzpicture}[x=1.15cm,y=1cm]
+  \foreach \n/\a/\b/\c in {hold/0/0.5/gray!15, pregrasp/0.5/3.0/keybg, approach/3.0/4.5/teal!12, grasp/4.5/6.0/orange!15, pull/6.0/9.0/violet!12, release/9.0/10.0/orange!15, retreat/10.0/11.2/gray!15}{
+    \fill[\c] (\a,0) rectangle (\b,1.1);
+    \draw[gray!60] (\a,0) rectangle (\b,1.1);
+    \node[font=\sffamily\scriptsize,rotate=0] at ({(\a+\b)/2},0.55) {\n};
+  }
+  \draw[->] (0,-0.1) -- (11.6,-0.1) node[right,font=\sffamily\scriptsize]{t [s]};
+  \foreach \t in {0,2,4,6,8,10} \draw (\t,-0.15) -- (\t,-0.05) node[below=2pt,font=\sffamily\tiny]{\t};
+  % gripper width command: y = 1.3 + w/0.1*1.1  (0 m -> 1.3, 0.04 m -> 1.74, 0.1 m -> 2.4)
+  \draw[thick,accent] (0,2.4) -- (0.5,2.4) .. controls (1.5,2.4) and (2,1.74) .. (3.0,1.74) -- (4.5,1.74)
+        -- (4.5,1.3) -- (9.0,1.3) -- (9.0,1.74) -- (11.2,1.74);
+  \node[font=\sffamily\scriptsize,accent,anchor=west] at (11.25,2.1) {lệnh độ mở gripper};
+  \node[font=\sffamily\tiny,accent,anchor=east] at (0,2.4) {0.10 m};
+  \node[font=\sffamily\tiny,accent,anchor=east] at (0,1.74) {0.04};
+  \node[font=\sffamily\tiny,accent,anchor=east] at (0,1.3) {0};
+\end{tikzpicture}
+\end{document}
