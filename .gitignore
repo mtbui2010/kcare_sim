@@ -33,3 +33,6 @@ website/tools/video/tutorial.mp4
 website/tools/video/tutorial.scenes.json
 website/tools/data/media/*.mp4
 sim/out/
+
+# scene editor runtime state
+sim/config/scenes/_*

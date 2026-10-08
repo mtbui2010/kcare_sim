@@ -53,6 +53,12 @@ class CameraModel:
         self.gain = np.array(cfg.get('color_gain', [1, 1, 1]), np.float32)      # white balance
         self.saturation = float(cfg.get('saturation', 1.0))
         self.ae_target = cfg.get('ae_target')                                   # mean luminance, None = off
+        # white-referenced exposure + auto white balance (what a camera's AE/AWB do in a bright room): the
+        # brightest low-chroma pixels are taken as "white", pulled to `awb_white` chromaticity with strength
+        # `awb`, and exposed so their mean luminance is `white_level`. Off unless set (office fit unchanged).
+        self.white_level = cfg.get('white_level')
+        self.awb = float(cfg.get('awb', 0.0))
+        self.awb_white = np.array(cfg.get('awb_white', [1.0, 1.0, 1.0]), np.float32)
         self.a = np.array(cfg.get('noise_var_a', [0, 0, 0]), np.float32)
         self.b = np.array(cfg.get('noise_var_b', [0, 0, 0]), np.float32)
         self.quality = int(cfg.get('jpeg_quality') or 90)
@@ -119,11 +125,33 @@ class CameraModel:
             x = cv2.filter2D(x, -1, k / max(k.sum(), 1e-6), borderType=cv2.BORDER_REPLICATE)
         return x
 
+    def _white_ref(self, x):
+        Y = np.array([0.299, 0.587, 0.114], np.float32)
+        s = x[::8, ::8].reshape(-1, 3)
+        lum = s @ Y
+        chroma = s.max(1) - s.min(1)
+        w = (lum >= np.percentile(lum, 70)) & (chroma < 0.2 * lum + 8)
+        if w.sum() < 30:                                    # no white in view: plain mean-luminance AE
+            if self.ae_target:
+                x = x * float(np.clip(self.ae_target * self.ep_exposure / max(float(lum.mean()), 1.0), 0.3, 3.0))
+            return x
+        m = s[w].mean(0) + 1e-3
+        if self.awb > 0:                                    # pull "white" to awb_white, keep its luminance
+            g = (self.awb_white / (self.awb_white @ Y)) / (m / (m @ Y))
+            g = (g ** self.awb).astype(np.float32)
+            g = g / float((m * g) @ Y / (m @ Y))
+            x = x * g; m = m * g
+        if self.white_level:
+            x = x * float(np.clip(self.white_level * self.ep_exposure / float(m @ Y), 0.4, 3.0))
+        return x
+
     def apply(self, img, rng=None, stages=('ae', 'color'), cam_T=None, t=None):
         """cam_T, t (optional): camera pose + time of this frame -> motion blur / rolling shutter."""
         flow = self.image_flow(cam_T, t) if cam_T is not None and t is not None else (0.0, 0.0)
         x = self._motion(img, flow).astype(np.float32)
-        if 'ae' in stages and self.ae_target:
+        if 'ae' in stages and (self.white_level or self.awb > 0):
+            x = self._white_ref(x)
+        elif 'ae' in stages and self.ae_target:
             lum = float((x @ np.array([0.299, 0.587, 0.114], np.float32)).mean())
             x = x * float(np.clip(self.ae_target * self.ep_exposure / max(lum, 1.0), 0.3, 3.0))
         if 'color' in stages:

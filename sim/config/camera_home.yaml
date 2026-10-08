@@ -1,16 +1,17 @@
+# Camera colours at home, live view (house_bridge.py). Bright, neutral whites like the robot's own home images
+# (whites ~180-190, R/G ~1, B/G ~1; see website/tools/data and calibrate_home.py) and like sim_overview:
+# white-referenced exposure + auto white balance (camera_model.CameraModel._white_ref), saturation from the fit.
+# camera_home_v1.yaml = the 2026-10-07 fit (mean-luminance AE + fixed gain) used by the current training data.
 head:
-  ae_target: 150.64
-  color_gain:
-  - 0.957
-  - 1.016
-  - 1.03
+  white_level: 185
+  awb: 1.0
+  awb_white: [1.0, 1.0, 1.0]
+  color_gain: [1.0, 1.0, 1.0]
   saturation: 2.14
 wrist:
-  ae_target: 129.92
-  color_gain:
-  - 1.008
-  - 0.996
-  - 0.998
+  white_level: 190
+  awb: 1.0
+  awb_white: [1.0, 1.0, 1.0]
+  color_gain: [1.0, 1.0, 1.0]
   saturation: 3.65
-_source: 'calibrate_home.py: sim/assets/real_home/robot_cams/*_drawer.jpg, fridge
-  site, 2026-10-07'
+_source: 'live-view look, 2026-10-08 (owner request: like sim_overview); fit values in camera_home_v1.yaml'

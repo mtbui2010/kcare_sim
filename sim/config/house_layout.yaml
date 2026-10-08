@@ -227,10 +227,10 @@ spots:
   dining table@kitchen:
     centre:
     - 1.18
-    - -2.81
-    front_yaw_deg: 90.0
-    depth: 0.62
-    width: 1.39
+    - -2.2
+    front_yaw_deg: 180.0
+    depth: 1.39
+    width: 0.62
     height: 0.745
     default_mode: left
   washer@laundry room:
@@ -275,115 +275,227 @@ objects:
   apple:
     ycb: 013_apple
     'on': desk@study room
+    body: obj_apple
     pos:
     - 2.37
     - 2.4
     - 0.722
+    spec:
+      surface: desk@study room
+      offset:
+      - -0.1
+      - -0.12
+      yaw_deg: 0
   banana:
     ycb: 011_banana
     'on': desk@study room
+    body: obj_banana
     pos:
     - 2.35
     - 2.6
     - 0.722
+    spec:
+      surface: desk@study room
+      offset:
+      - 0.1
+      - -0.1
+      yaw_deg: 30
   orange:
     ycb: 017_orange
     'on': desk@study room
+    body: obj_orange
     pos:
     - 2.37
     - 2.8
     - 0.722
+    spec:
+      surface: desk@study room
+      offset:
+      - 0.3
+      - -0.12
+      yaw_deg: 0
   mug:
     ycb: 025_mug
     'on': desk@study room
+    body: obj_mug
     pos:
     - 2.35
     - 2.18
     - 0.723
+    spec:
+      surface: desk@study room
+      offset:
+      - -0.32
+      - -0.1
+      yaw_deg: 90
   cracker box:
     ycb: 003_cracker_box
     'on': shelf@kitchen
+    body: obj_cracker_box
     pos:
     - 0.42
     - -3.72
     - 0.517
+    spec:
+      surface: shelf@kitchen
+      offset:
+      - 0.0
+      - 0.0
+      yaw_deg: 90
   mustard bottle:
     ycb: 006_mustard_bottle
     'on': counter@kitchen
+    body: obj_mustard_bottle
     pos:
     - -0.8
     - -3.68
     - 0.905
+    spec:
+      surface: counter@kitchen
+      offset:
+      - 0.0
+      - 0.05
+      yaw_deg: 0
   tomato soup can:
     ycb: 005_tomato_soup_can
     'on': counter@kitchen
+    body: obj_tomato_soup_can
     pos:
     - -0.53
     - -3.71
     - 0.902
+    spec:
+      surface: counter@kitchen
+      offset:
+      - -0.27
+      - 0.08
+      yaw_deg: 0
   pitcher:
     ycb: 019_pitcher_base
     'on': counter@kitchen
+    body: obj_pitcher
     pos:
     - -0.64
     - -3.68
     - 0.905
+    spec:
+      surface: counter@kitchen
+      offset:
+      - -0.16
+      - 0.05
+      yaw_deg: 0
   sugar box:
     ycb: 004_sugar_box
     'on': counter@kitchen
+    body: obj_sugar_box
     pos:
     - -1.57
     - -3.75
     - 0.902
+    spec:
+      surface: counter@kitchen
+      offset:
+      - 0.77
+      - 0.12
+      yaw_deg: 20
   bowl:
     ycb: 024_bowl
     'on': dining table@kitchen
+    body: obj_bowl
     pos:
-    - 0.98
-    - -2.81
+    - 0.93
+    - -2.32
     - 0.748
+    spec:
+      surface: dining table@kitchen
+      offset:
+      - 0.12
+      - -0.25
+      yaw_deg: 0
   plate:
     ycb: 029_plate
     'on': dining table@kitchen
+    body: obj_plate
     pos:
-    - 1.48
-    - -2.86
+    - 1.38
+    - -2.08
     - 0.75
+    spec:
+      surface: dining table@kitchen
+      offset:
+      - -0.12
+      - 0.2
+      yaw_deg: 0
   bleach bottle:
     ycb: 021_bleach_cleanser
     'on': washer@laundry room
+    body: obj_bleach_bottle
     pos:
     - -2.64
     - -2.9
     - 0.862
+    spec:
+      surface: washer@laundry room
+      offset:
+      - 0.1
+      - 0.0
+      yaw_deg: 0
   red cup:
     ycb: 065-a_cups
     'on': chest@bedroom
+    body: obj_red_cup
     pos:
     - -4.15
     - -0.1
     - 0.731
+    spec:
+      surface: chest@bedroom
+      offset:
+      - -0.2
+      - -0.08
+      yaw_deg: 0
   tennis ball:
     ycb: 056_tennis_ball
     'on': stool@bedroom
+    body: obj_tennis_ball
     pos:
     - -4.25
     - 0.95
     - 0.447
+    spec:
+      surface: stool@bedroom
+      offset:
+      - 0.0
+      - 0.0
+      yaw_deg: 0
   spray bottle:
     ycb: 022_windex_bottle
     'on': shelf@restroom
+    body: obj_spray_bottle
     pos:
     - 2.88
     - -1.62
     - 0.955
+    spec:
+      surface: shelf@restroom
+      offset:
+      - -0.12
+      - 0.0
+      yaw_deg: 90
   sponge:
     ycb: 026_sponge
     'on': shelf@restroom
+    body: obj_sponge
     pos:
     - 2.88
     - -1.35
     - 0.954
+    spec:
+      surface: shelf@restroom
+      offset:
+      - 0.15
+      - 0.0
+      yaw_deg: 0
 start:
   x: 0.0
   y: 0.0
@@ -396,5 +508,518 @@ bounds:
   - -4.0
   - 4.0
 cab_site: nw
+scene: ''
+furniture:
+  aircon:
+    pos:
+    - 1.6
+    - 3.72
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 1.6
+      - 3.719
+      size:
+      - 0.403
+      - 0.52
+      yaw_deg: -90.0
+  sofa:
+    pos:
+    - -1.32
+    - 2.98
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -1.32
+      - 2.98
+      size:
+      - 2.06
+      - 0.94
+      yaw_deg: -90.0
+  side_table:
+    pos:
+    - -1.38
+    - 1.85
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -1.38
+      - 1.85
+      size:
+      - 0.38
+      - 0.68
+      yaw_deg: 90.0
+  tv_stand:
+    pos:
+    - 1.67
+    - 2.6
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 1.669
+      - 2.6
+      size:
+      - 1.6
+      - 0.362
+      yaw_deg: -90.0
+  study_desk:
+    pos:
+    - 2.25
+    - 2.5
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 2.25
+      - 2.5
+      size:
+      - 1.0
+      - 0.6
+      yaw_deg: 90.0
+  cab:
+    pos:
+    - -1.425
+    - -0.82
+    yaw_deg: 180.0
+    type: vla cabinet
+    editable: false
+    footprint:
+      centre:
+      - -1.402
+      - -0.82
+      size:
+      - 0.575
+      - 0.43
+      yaw_deg: 180.0
+  counter:
+    pos:
+    - -0.8
+    - -3.65
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -0.8
+      - -3.63
+      size:
+      - 1.82
+      - 0.64
+      yaw_deg: 0.0
+  kitchen_shelf:
+    pos:
+    - 0.42
+    - -3.72
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 0.42
+      - -3.72
+      size:
+      - 0.624
+      - 0.54
+      yaw_deg: 0.0
+  wire_shelf:
+    pos:
+    - 0.96
+    - -3.8
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 0.96
+      - -3.8
+      size:
+      - 0.44
+      - 0.34
+      yaw_deg: 0.0
+  dining_table:
+    pos:
+    - 1.18
+    - -2.2
+    yaw_deg: 180.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 1.215
+      - -2.2
+      size:
+      - 1.39
+      - 0.62
+      yaw_deg: 180.0
+  dchair0:
+    pos:
+    - 1.3
+    - -2.85
+    yaw_deg: -90.0
+    type: shell chair
+    editable: true
+    footprint:
+      centre:
+      - 1.3
+      - -2.853
+      size:
+      - 0.445
+      - 0.44
+      yaw_deg: -90.0
+  fridge:
+    pos:
+    - 1.55
+    - -1.25
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 1.549
+      - -1.25
+      size:
+      - 0.72
+      - 0.703
+      yaw_deg: -90.0
+  tote_bag:
+    pos:
+    - 1.7
+    - -0.7
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 1.699
+      - -0.7
+      size:
+      - 0.34
+      - 0.242
+      yaw_deg: -90.0
+  washer:
+    pos:
+    - -2.64
+    - -3.0
+    yaw_deg: -90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -2.638
+      - -3.0
+      size:
+      - 0.6
+      - 0.605
+      yaw_deg: -90.0
+  laundry_shelf:
+    pos:
+    - -2.55
+    - -3.78
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -2.55
+      - -3.78
+      size:
+      - 0.4
+      - 0.62
+      yaw_deg: 90.0
+  storage_shelf:
+    pos:
+    - -2.73
+    - -1.45
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -2.73
+      - -1.45
+      size:
+      - 0.4
+      - 0.82
+      yaw_deg: 0.0
+  laundry_basket:
+    pos:
+    - -2.0
+    - -3.72
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -2.0
+      - -3.72
+      size:
+      - 0.42
+      - 0.41
+      yaw_deg: 0.0
+  bed:
+    pos:
+    - -2.77
+    - 2.83
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -2.77
+      - 2.83
+      size:
+      - 1.8
+      - 2.24
+      yaw_deg: 0.0
+  chest:
+    pos:
+    - -4.23
+    - 0.1
+    yaw_deg: 180.0
+    type: chest
+    editable: true
+    footprint:
+      centre:
+      - -4.198
+      - 0.1
+      size:
+      - 0.485
+      - 0.8
+      yaw_deg: 180.0
+  leaning_board:
+    pos:
+    - -4.38
+    - 1.65
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.38
+      - 1.65
+      size:
+      - 0.156
+      - 0.6
+      yaw_deg: 0.0
+  stool:
+    pos:
+    - -4.25
+    - 0.95
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.25
+      - 0.95
+      size:
+      - 0.5
+      - 0.5
+      yaw_deg: 0.0
+  closet_hang:
+    pos:
+    - -4.18
+    - -1.35
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.18
+      - -1.35
+      size:
+      - 0.54
+      - 0.824
+      yaw_deg: 90.0
+  closet_mirror:
+    pos:
+    - -4.43
+    - -3.0
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.429
+      - -3.0
+      size:
+      - 0.48
+      - 0.042
+      yaw_deg: 90.0
+  closet_drawers:
+    pos:
+    - -4.2
+    - -2.3
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.2
+      - -2.3
+      size:
+      - 0.864
+      - 0.5
+      yaw_deg: 90.0
+  closet_corner:
+    pos:
+    - -4.17
+    - -3.55
+    yaw_deg: 90.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - -4.171
+      - -3.556
+      size:
+      - 0.572
+      - 0.602
+      yaw_deg: 90.0
+  bathtub:
+    pos:
+    - 4.1
+    - -3.62
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 4.1
+      - -3.62
+      size:
+      - 1.56
+      - 0.72
+      yaw_deg: 0.0
+  bath_mat:
+    pos:
+    - 4.1
+    - -2.95
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 4.1
+      - -2.95
+      size:
+      - 0.6
+      - 0.4
+      yaw_deg: 0.0
+  basin:
+    pos:
+    - 2.98
+    - -2.2
+    yaw_deg: 180.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 3.03
+      - -2.2
+      size:
+      - 0.44
+      - 0.52
+      yaw_deg: 180.0
+  bath_shelf:
+    pos:
+    - 2.88
+    - -1.5
+    yaw_deg: 180.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 2.88
+      - -1.5
+      size:
+      - 0.2
+      - 0.6
+      yaw_deg: 180.0
+  toilet:
+    pos:
+    - 5.12
+    - -1.7
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 5.13
+      - -1.7
+      size:
+      - 0.64
+      - 0.38
+      yaw_deg: 0.0
+  towel_rack:
+    pos:
+    - 2.82
+    - -1.0
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 2.846
+      - -1.0
+      size:
+      - 0.032
+      - 0.4
+      yaw_deg: 0.0
+  shower:
+    pos:
+    - 5.4
+    - -3.3
+    yaw_deg: 0.0
+    type: null
+    editable: true
+    footprint:
+      centre:
+      - 5.356
+      - -3.3
+      size:
+      - 0.112
+      - 0.08
+      yaw_deg: 0.0
+catalog:
+  furniture:
+    desk: desk 1.0 × 0.6 m
+    dining table: table 1.2 × 0.75 m
+    coffee table: low table 0.9 × 0.5 m
+    side table: oval side table
+    stool: upholstered stool
+    chest: white chest, 3 drawers
+    pedestal: pedestal cabinet (grey/wood)
+    shell chair: white shell chair
+    wood chair: wooden chair
+    office chair: office chair
+    wire shelf: wire shelf 5 tiers
+    storage shelf: white storage shelf
+  objects:
+  - 003_cracker_box
+  - 004_sugar_box
+  - 005_tomato_soup_can
+  - 006_mustard_bottle
+  - 011_banana
+  - 013_apple
+  - 017_orange
+  - 019_pitcher_base
+  - 021_bleach_cleanser
+  - 022_windex_bottle
+  - 024_bowl
+  - 025_mug
+  - 026_sponge
+  - 029_plate
+  - 056_tennis_ball
+  - 065-a_cups
 source: docs/draws/floor.drawio (owner, 2026-10-07); looks from the owner photos +
   home_tour.mp4

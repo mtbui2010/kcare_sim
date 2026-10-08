@@ -14,6 +14,9 @@ these exactly as on the robot, so its skills (move, find, ...) run unchanged:
             /sim/overview/image_raw/compressed    follow camera, for people watching (not a robot sensor)
             /sim/topdown/image_raw/compressed     fixed camera above the whole house (ceiling hidden, walls shown)
             /sim/drawer_states (JointState)       how far each drawer is open — sim ground truth, for evaluation only
+  service   /sim/command (sim_msgs/SimCommand, JSON in / out): reset objects / drawers / the robot, move an object,
+            apply / save / load / delete scenes (config/scenes/<name>.yaml, house_scene.py) with a hot reload
+            of the model — the dashboard's Map tab "Sim" bar drives it through robot_agent
   /sim/arm_servo (JointState, subscribed)          streamed joint targets (joint1..7, virtual_gripper_joint) for a
                                                    learned policy at 30 Hz: set straight on the servos, no trajectory
   actions   /navigate_to_pose (nav2)  /kaair_worker/{arm_moveJ, arm_moveL, arm_moveT, lift_move, head_move}
@@ -47,10 +50,13 @@ from kaair_msgs.srv import CreateObjectMarker, MobileRotate, MobileShift
 from nav2_msgs.action import NavigateToPose
 from sensor_msgs.msg import CameraInfo, CompressedImage, Image, JointState
 from std_srvs.srv import Trigger
+from sim_msgs.srv import SimCommand
+import json, subprocess
 
 SIM = os.environ.get('SIM_ROOT', '/sim')
 sys.path.insert(0, os.path.join(SIM, 'scripts'))
 import check_sim as cs  # noqa: E402
+import house_scene  # noqa: E402
 
 ARM = [f'joint{i}' for i in range(1, 8)]
 JOINTS = ['lift_joint', 'head_joint1', 'head_joint2'] + ARM + ['virtual_gripper_joint']   # kcare's /joint_states order
@@ -94,10 +100,7 @@ class Sim:
         self.m = mujoco.MjModel.from_xml_path(xml)
         self.d = mujoco.MjData(self.m)
         self.lock = threading.RLock()
-        self.aid = {j: mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_ACTUATOR, a) for j, a in ACT.items()}
-        self.qadr = {j: self.m.jnt_qposadr[mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_JOINT, j)] for j in JOINTS}
-        self.fingers = [self.m.jnt_qposadr[mujoco.mj_name2id(self.m, mujoco.mjtObj.mjOBJ_JOINT, f)]
-                        for f in ('left_finger_tip_joint', 'right_finger_tip_joint')]
+        self._index()
         self.base = np.array([start['x'], start['y'], start['yaw_deg'] * DEG])
         # start like the robot after init: lift home (lift::0.6), head straight, arm folded (front), gripper open
         q0 = {'lift_joint': 0.17, 'head_joint1': 0.0, 'head_joint2': -40 * DEG, 'virtual_gripper_joint': 0.1,
@@ -115,6 +118,121 @@ class Sim:
         mujoco.mj_forward(self.m, self.d)
         self.t = 0.0
         self.running = True
+        self.version = 0                     # bumped by reload(): renderers / planner rebuild on change
+        self.start = dict(start)
+        self.init = {}                       # joint -> qpos at load (objects, drawers): what reset restores
+
+    def _index(self):
+        m = self.m
+        self.aid = {j: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_ACTUATOR, a) for j, a in ACT.items()}
+        self.qadr = {j: m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, j)] for j in JOINTS}
+        self.fingers = [m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f)]
+                        for f in ('left_finger_tip_joint', 'right_finger_tip_joint')]
+
+    def scene_joints(self):
+        """Free joints of the objects and slide joints of the drawers: (name, qpos adr, n qpos, dof adr, n dof)."""
+        m, out = self.m, []
+        for j in range(m.njnt):
+            n, t = m.joint(j).name, m.jnt_type[j]
+            if (t == mujoco.mjtJoint.mjJNT_FREE and n.startswith('obj_')) or n.endswith('_slide'):
+                nq, nv = (7, 6) if t == mujoco.mjtJoint.mjJNT_FREE else (1, 1)
+                out.append((n, m.jnt_qposadr[j], nq, m.jnt_dofadr[j], nv))
+        return out
+
+    def snapshot(self):
+        with self.lock:
+            self.init = {n: self.d.qpos[a:a + k].copy() for n, a, k, _, _ in self.scene_joints()}
+
+    def settle(self, steps=200):
+        with self.lock:
+            for _ in range(steps):
+                mujoco.mj_step(self.m, self.d)
+
+    def reload(self, xml):
+        """Swap in a rebuilt model, keeping the robot where it is (pose, joints, running trajectories)."""
+        m2 = mujoco.MjModel.from_xml_path(xml); d2 = mujoco.MjData(m2)
+        with self.lock:
+            q = {j: self.q(j) for j in JOINTS}
+            ctrl = {j: float(self.d.ctrl[self.aid[j]]) for j in JOINTS}
+            fing = [float(self.d.qpos[f]) for f in self.fingers]
+            self.m, self.d = m2, d2
+            self._index()
+            for j in JOINTS:
+                self.d.qpos[self.qadr[j]] = q[j]; self.d.ctrl[self.aid[j]] = ctrl[j]
+            for f, v in zip(self.fingers, fing):
+                self.d.qpos[f] = v
+            self._set_mocap()
+            mujoco.mj_forward(self.m, self.d)
+            for _ in range(200):                             # let the objects settle
+                mujoco.mj_step(self.m, self.d)
+            self.version += 1
+        self.snapshot()
+
+    def reset(self, what='objects', only=None):
+        """objects: objects back to their load pose | scene: + drawers closed | all: + robot at the start, arm home."""
+        with self.lock:
+            for n, a, k, va, nv in self.scene_joints():
+                is_obj = n.startswith('obj_')
+                if not is_obj and what == 'objects':
+                    continue
+                if only and not (is_obj and n[4:-5] in only):
+                    continue
+                if n in self.init:
+                    self.d.qpos[a:a + k] = self.init[n]
+                self.d.qvel[va:va + nv] = 0.0
+            if what == 'all':
+                self.base_goal = None; self.base_done.set(); self.traj.clear()
+                self.base[:] = (self.start['x'], self.start['y'], self.start['yaw_deg'] * DEG)
+                q0 = {'lift_joint': 0.17, 'head_joint1': 0.0, 'head_joint2': -40 * DEG, 'virtual_gripper_joint': 0.1,
+                      **dict(zip(ARM, np.radians([90, 0, 20, 12, -40, 97, -10])))}
+                for j, v in q0.items():
+                    self.d.qpos[self.qadr[j]] = v; self.d.ctrl[self.aid[j]] = v
+                for f in self.fingers:
+                    self.d.qpos[f] = 0.05
+                self._set_mocap()
+            mujoco.mj_forward(self.m, self.d)
+
+    def objects(self):
+        """Live object poses: [{name, body, pos [x, y, z], yaw_deg, quat [w, x, y, z]}]."""
+        out = []
+        with self.lock:
+            for n, a, k, _, _ in self.scene_joints():
+                if n.startswith('obj_'):
+                    p, q = self.d.qpos[a:a + 3], self.d.qpos[a + 3:a + 7]
+                    yaw = math.atan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] ** 2 + q[3] ** 2))
+                    out.append(dict(body=n[:-5], pos=[round(float(v), 4) for v in p], yaw_deg=round(math.degrees(yaw), 1),
+                                    quat=[round(float(v), 5) for v in q]))
+        return out
+
+    def teleport(self, body, x, y, yaw_deg=None):
+        """Put object `body` upright at (x, y) on whatever surface is below (ray from above), resting."""
+        m = self.m
+        with self.lock:
+            bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, body)
+            j = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, body + '_free')
+            if bid < 0 or j < 0:
+                return False, f'no object {body}'
+            a, va = m.jnt_qposadr[j], m.jnt_dofadr[j]
+            q = self.d.qpos[a + 3:a + 7]
+            yaw = math.radians(yaw_deg) if yaw_deg is not None else math.atan2(2 * (q[0] * q[3] + q[1] * q[2]), 1 - 2 * (q[2] ** 2 + q[3] ** 2))
+            gid = np.zeros(1, np.int32)
+            hit = mujoco.mj_ray(m, self.d, np.array([x, y, 2.4]), np.array([0.0, 0.0, -1.0]),
+                                np.array([1, 1, 0, 1, 1, 1], np.uint8), 1, bid, gid)
+            zs = 2.4 - hit if hit >= 0 else 0.0
+            root = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'base_footprint')
+            if hit >= 0 and Planner._under(m, int(m.geom_bodyid[gid[0]]), root):
+                return False, f'the robot is at ({x:.2f}, {y:.2f}): drop {body} somewhere else'
+            self.d.qpos[a:a + 3] = [x, y, zs + 0.5]
+            self.d.qpos[a + 3:a + 7] = [math.cos(yaw / 2), 0, 0, math.sin(yaw / 2)]
+            self.d.qvel[va:va + 6] = 0.0
+            mujoco.mj_forward(m, self.d)
+            corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)], float)
+            low = min(float(((corners * m.geom_aabb[g][3:] + m.geom_aabb[g][:3]) @ self.d.geom_xmat[g].reshape(3, 3).T[:, 2]).min()
+                            + self.d.geom_xpos[g][2])
+                      for g in range(m.ngeom) if m.geom_bodyid[g] == bid)
+            self.d.qpos[a + 2] += zs + 0.003 - low
+            mujoco.mj_forward(m, self.d)
+        return True, f'{body} at ({x:.2f}, {y:.2f}) on z {zs:.3f}'
 
     # base pose (kinematic)
     def _set_mocap(self):
@@ -340,8 +458,9 @@ class NoiseBank:
 
 
 class Bridge(Node):
-    def __init__(self, sim, planner, rate, camera_model=True, depth_model=True):
+    def __init__(self, sim, planner, rate, camera_model=True, depth_model=True, bounds=None):
         super().__init__('kcare_house_sim')
+        self.bounds = bounds                                  # house (x0, x1, y0, y1), for the top-down frame
         self.sim, self.planner, self.ik = sim, planner, ArmIK()
         cg = ReentrantCallbackGroup()
         cam = yaml.safe_load(open(f'{SIM}/config/camera_real.yaml'))
@@ -359,8 +478,8 @@ class Bridge(Node):
             self.dcams = cmod.load_depth_models(profile='home') if depth_model else {}   # Femto ToF / D405 stereo depth artefacts
             self.cam_rng = np.random.default_rng()
             self.noise = NoiseBank()
-            for c in self.cams.values():
-                c.episode_jitter(self.cam_rng)
+            for c in self.cams.values():               # live view: no per-episode AE/AWB jitter (that is for data)
+                c.episode_jitter(None)
         self.flock = threading.Lock()
         pub = lambda t, typ: self.create_publisher(typ, t, 10)
         self.p_js = pub('/joint_states', JointState)
@@ -396,9 +515,116 @@ class Bridge(Node):
         S(CreateObjectMarker, '/create_object_marker', lambda rq, rs: self.on_marker(rq, rs, 'head'))
         S(CreateObjectMarker, '/create_tool_marker', lambda rq, rs: self.on_marker(rq, rs, 'wrist'))
         S(Trigger, '/arm/init_set', self.on_init)
+        S(SimCommand, '/sim/command', self.on_sim_command)
+        self.scene_name = house_scene.active_scene()
+        self.scene_def = house_scene.load_scene(self.scene_name) if self.scene_name else {}
+        self.dirty = False
         self.rate = rate
         threading.Thread(target=self.render_loop, daemon=True).start()
         self.get_logger().info('kcare house sim ready')
+
+    # ── simulation control (/sim/command) ───────────────────────────────────────
+    def on_sim_command(self, req, res):
+        try:
+            cmd = json.loads(req.request or '{}')
+            out = self.sim_command(cmd)
+        except Exception as e:                               # never kill the service thread
+            out = {'ok': False, 'msg': f'{type(e).__name__}: {e}'}
+        res.response = json.dumps(out)
+        return res
+
+    def sim_command(self, cmd):
+        c = cmd.get('cmd')
+        if c == 'state':
+            lay = yaml.safe_load(open(f'{SIM}/config/house_layout.yaml'))
+            objs = self.sim.objects()
+            built = {v['body']: (k, v) for k, v in (lay.get('objects') or {}).items()}
+            for o in objs:
+                k, v = built.get(o['body'], (o['body'][4:], {}))
+                o['name'], o['ycb'], o['surface'] = k, v.get('ycb'), v.get('on')
+                # still where the scene put it -> `spec` rebuilds it the same way (on its surface, which follows
+                # the furniture); moved by hand -> the UI saves the live pose instead
+                o['moved'] = self._moved(o, v)
+                o['spec'] = v.get('spec')
+            return {'ok': True, 'scene': self.scene_name, 'dirty': self.dirty, 'scene_def': self.scene_def,
+                    'scenes': sorted(f[:-5] for f in os.listdir(house_scene.SCENES_DIR) if f.endswith('.yaml') and not f.startswith('_'))
+                              if os.path.isdir(house_scene.SCENES_DIR) else [],
+                    'objects': objs, 'furniture': lay.get('furniture', {}), 'catalog': lay.get('catalog', {}),
+                    'spots': list((lay.get('spots') or {}).keys())}
+        if c == 'reset':
+            what = cmd.get('what', 'objects')
+            self.sim.reset(what, cmd.get('only'))
+            return {'ok': True, 'msg': f'reset {what}' + (f" ({', '.join(cmd['only'])})" if cmd.get('only') else '')}
+        if c == 'move_object':
+            ok, msg = self.sim.teleport(cmd['body'], float(cmd['x']), float(cmd['y']), cmd.get('yaw_deg'))
+            self.dirty |= ok
+            return {'ok': ok, 'msg': msg}
+        if c == 'apply':                                   # a full scene dict -> rebuild + hot reload
+            return self.apply_scene(cmd.get('scene') or {}, cmd.get('name', '_working'))
+        if c == 'load':
+            return self.apply_scene(house_scene.load_scene(cmd['name']), cmd['name'])
+        if c == 'save':
+            name = str(cmd['name']).strip()
+            if not name or '/' in name or name.startswith(('.', '_')):
+                return {'ok': False, 'msg': f'bad scene name {name!r}'}
+            scene = dict(self.scene_def)
+            lay = yaml.safe_load(open(f'{SIM}/config/house_layout.yaml'))
+            built = {v['body']: (k, v) for k, v in (lay.get('objects') or {}).items()}
+            scene['objects'] = []
+            for o in self.sim.objects():
+                if o['body'] not in built:
+                    continue
+                k, v = built[o['body']]
+                if v.get('spec') and not self._moved(o, v):          # untouched: stays on its surface (follows the furniture)
+                    scene['objects'].append(dict(name=k, ycb=v['ycb'], **v['spec']))
+                else:                                                # moved by hand: the live pose, as it is now
+                    scene['objects'].append(dict(name=k, ycb=v['ycb'], at=o['pos'], quat=o['quat']))
+            os.makedirs(house_scene.SCENES_DIR, exist_ok=True)
+            yaml.safe_dump(scene, open(f'{house_scene.SCENES_DIR}/{name}.yaml', 'w'), sort_keys=False, allow_unicode=True)
+            open(f'{house_scene.SCENES_DIR}/_active', 'w').write(name + '\n')
+            self.scene_name, self.scene_def, self.dirty = name, scene, False
+            self.sim.snapshot()                              # reset now returns to the saved poses
+            return {'ok': True, 'msg': f'saved scene {name!r} ({len(scene["objects"])} objects)'}
+        if c == 'delete':
+            path = f"{house_scene.SCENES_DIR}/{cmd['name']}.yaml"
+            if os.path.exists(path) and not str(cmd['name']).startswith('_'):
+                os.remove(path)
+                return {'ok': True, 'msg': f"deleted scene {cmd['name']!r}"}
+            return {'ok': False, 'msg': f"no scene {cmd['name']!r}"}
+        return {'ok': False, 'msg': f'unknown cmd {c!r}'}
+
+    @staticmethod
+    def _moved(o, built):
+        """Live object `o` is no longer where the scene build put it (house_layout.yaml objects entry `built`)."""
+        p = built.get('pos')
+        return not p or math.dist(o['pos'][:2], p[:2]) > 0.03 or abs(o['pos'][2] - p[2]) > 0.05
+
+    def apply_scene(self, scene, name):
+        """Rebuild house.xml (+ height map, kcare ENV / MAP) for `scene` and hot-swap the model; the robot stays."""
+        t0 = time.time()
+        os.makedirs(house_scene.SCENES_DIR, exist_ok=True)
+        if name == '_working':
+            yaml.safe_dump(scene, open(f'{house_scene.SCENES_DIR}/_working.yaml', 'w'), sort_keys=False, allow_unicode=True)
+        build_as = '' if name == '_working' and not scene else name          # an empty scene = the base house
+        py, env = f'{SIM}/.venv/bin/python', dict(os.environ, MUJOCO_GL='egl')
+        r = subprocess.run([py, f'{SIM}/scripts/house_scene.py', '--scene', build_as], capture_output=True, text=True, env=env)
+        if r.returncode != 0:
+            return {'ok': False, 'msg': 'rebuild failed: ' + (r.stderr or r.stdout)[-400:]}
+        skipped = [l for l in r.stdout.splitlines() if 'skipped' in l]
+        r2 = subprocess.run([py, f'{SIM}/scripts/make_kcare_sim_location.py'], capture_output=True, text=True, env=env)
+        if r2.returncode != 0:
+            return {'ok': False, 'msg': 'kcare site update failed: ' + (r2.stderr or r2.stdout)[-400:]}
+        self.sim.reload(f'{SIM}/mjcf/house.xml')
+        lay = yaml.safe_load(open(f'{SIM}/config/house_layout.yaml'))
+        self.planner = Planner(self.sim, bounds=lay.get('bounds'))
+        write_occupancy(self.planner)
+        m = self.sim.m
+        self.drawer_joints = [m.joint(i).name for i in range(m.njnt) if m.joint(i).name.endswith('_slide')]
+        self.scene_name = build_as
+        self.scene_def, self.dirty = scene, build_as == '_working'
+        ov = json.load(open(f'{SIM}/kcare_sim_configs/locations/sim_house/skill_configs_override.json'))
+        return {'ok': True, 'msg': f'scene applied in {time.time() - t0:.0f} s' + (f' ({len(skipped)} skipped)' if skipped else ''),
+                'skipped': skipped, 'env': ov.get('ENV'), 'map': ov.get('MAP')}
 
     # ── state ────────────────────────────────────────────────────────────────
     def q_all(self):
@@ -460,28 +686,36 @@ class Bridge(Node):
         return ci
 
     def render_loop(self):
+        while rclpy.ok() and self.sim.running:               # (re)start whenever the model is swapped
+            self._render_until_reload()
+
+    def _render_until_reload(self):
         m, sim = self.sim.m, self.sim
+        version = sim.version
         R = {'head': mujoco.Renderer(m, 720, 1280), 'wrist': mujoco.Renderer(m, 480, 848), 'over': mujoco.Renderer(m, 480, 848)}
         cam_id = {'head': mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_CAMERA, 'head_rgb'),
                   'wrist': mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_CAMERA, 'wrist_rgb')}
         over = mujoco.MjvCamera()
         over_opt = mujoco.MjvOption(); over_opt.geomgroup[2] = 0      # walls hidden: see the robot from above
-        # fixed top-down camera over the whole house: walls kept (they read as the floor plan), ceiling and
-        # downlights dropped from its scene after each update; frame sized to the house bounds
-        pl = self.planner
-        bx0, by0 = pl.x0 + 0.5, pl.y0 + 0.5
-        bx1, by1 = pl.x0 + pl.W * pl.res - 0.5, pl.y0 + pl.H * pl.res - 0.5
-        TW = 960; TH = int(round(TW * (by1 - by0 + 0.6) / (bx1 - bx0 + 0.6))) // 2 * 2
+        # fixed top-down camera over the whole house, ORTHOGRAPHIC with house_scene.map_frame(): a true floor plan
+        # whose pixels map linearly to metres (the dashboard's Map tab clicks on it). Walls kept, ceiling and
+        # downlights dropped from its scene after each update. MuJoCo's free camera takes its projection from
+        # the model-wide vis.global_ (orthographic flag, fovy = vertical extent in m): set for this update only.
+        import house_scene
+        fr = house_scene.map_frame(self.bounds)
+        TW, TH = fr['width'], fr['height']
         R['top'] = mujoco.Renderer(m, TH, TW)
         top = mujoco.MjvCamera()
-        top.lookat[:] = [(bx0 + bx1) / 2, (by0 + by1) / 2, 0.0]
-        top.azimuth, top.elevation = 90.0, -89.9                       # x (east) to the right, y (north) up, as the drawio plan
-        top.distance = ((by1 - by0) / 2 + 0.3) / math.tan(math.radians(m.vis.global_.fovy / 2)) + WALL_TOP
+        top.lookat[:] = [fr['origin'][0] + TW * fr['resolution'] / 2, fr['origin'][1] + TH * fr['resolution'] / 2, 0.0]
+        top.azimuth, top.elevation, top.distance = 90.0, -90.0, 10.0   # x (east) right, y (north) up
+        top_extent = TH * fr['resolution']
         hide_top = {g for g in range(m.ngeom) if m.geom(g).name == 'ceiling' or m.geom(g).name.startswith('downlight')}
         period = 1.0 / self.rate
-        while rclpy.ok() and sim.running:
+        while rclpy.ok() and sim.running and sim.version == version:
             t0 = time.time()
             with sim.lock:
+                if sim.version != version:
+                    break
                 snap = {}
                 for c in ('head', 'wrist'):
                     R[c].update_scene(sim.d, cam_id[c])
@@ -491,7 +725,10 @@ class Bridge(Node):
                 over.lookat[:] = [x + 0.6 * math.cos(a), y + 0.6 * math.sin(a), 0.6]
                 over.distance, over.azimuth, over.elevation = 3.6, math.degrees(a) - 30, -45
                 R['over'].update_scene(sim.d, over, scene_option=over_opt)
+                fovy0, ortho0 = m.vis.global_.fovy, m.vis.global_.orthographic
+                m.vis.global_.fovy, m.vis.global_.orthographic = top_extent, 1
                 R['top'].update_scene(sim.d, top)
+                m.vis.global_.fovy, m.vis.global_.orthographic = fovy0, ortho0
                 sc = R['top'].scene
                 for k in range(sc.ngeom):
                     if sc.geoms[k].objtype == mujoco.mjtObj.mjOBJ_GEOM and sc.geoms[k].objid in hide_top:
@@ -540,6 +777,11 @@ class Bridge(Node):
             tc.data = u8(cv2.imencode('.jpg', cv2.cvtColor(tp, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 80])[1].tobytes())
             self.p_top.publish(tc)
             time.sleep(max(0.0, period - (time.time() - t0)))
+        for r in R.values():                                 # the model changed: free these GL contexts
+            try:
+                r.close()
+            except Exception:
+                pass
 
     def on_marker(self, req, res, cam):
         """Pixels (+ optional depths) of the last published frame -> points in req.base_frame."""
@@ -747,6 +989,15 @@ class Bridge(Node):
         return res
 
 
+def write_occupancy(planner):
+    cv2.imwrite(f'{SIM}/out/house/occupancy.png', ((1 - planner.inflated) * 180 + (1 - planner.occ) * 75)[::-1].astype(np.uint8))
+    # the same grid for the dashboard's Map tab (kcare site files, frame = house_scene.occupancy_frame):
+    # 0 free, 128 too close for the base centre (inflated), 255 obstacle
+    map_dir = os.environ.get('KCARE_MAP_DIR', f'{SIM}/kcare_sim_configs/locations/sim_house/map')
+    os.makedirs(map_dir, exist_ok=True)
+    cv2.imwrite(f'{map_dir}/occupancy.png', np.maximum(planner.inflated * 128, planner.occ * 255)[::-1].astype(np.uint8))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--xml', default=f'{SIM}/mjcf/house.xml')
@@ -758,11 +1009,13 @@ def main():
     sim = Sim(a.xml, layout['start'])
     for _ in range(200):                                     # settle objects before anything reads the scene
         mujoco.mj_step(sim.m, sim.d)
+    sim.snapshot()                                           # what /sim/command reset restores
     planner = Planner(sim, bounds=layout.get('bounds'))
-    cv2.imwrite(f'{SIM}/out/house/occupancy.png', ((1 - planner.inflated) * 180 + (1 - planner.occ) * 75)[::-1].astype(np.uint8))
+    write_occupancy(planner)
     threading.Thread(target=sim.loop, daemon=True).start()
     rclpy.init()
-    node = Bridge(sim, planner, a.rate, camera_model=not a.no_camera_model,
+    b = layout.get('bounds')
+    node = Bridge(sim, planner, a.rate, bounds=(*b['x'], *b['y']) if b else None, camera_model=not a.no_camera_model,
                   depth_model=not a.no_depth_model)
     ex = MultiThreadedExecutor(num_threads=12)
     ex.add_node(node)

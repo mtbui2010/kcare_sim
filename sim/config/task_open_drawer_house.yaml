@@ -2,7 +2,7 @@
 # (kcare_robot/configs/tasks.py). Angles in degrees as kcare stores them.
 cabinet: A_home                 # the kcare pedestal at home: A_real look (grey sides) + casters
 scene: house          # KETI apartment around the robot (house_scene.drawer_scene_xml)
-camera_profile: home           # camera colours fitted at home (config/camera_home.yaml, calibrate_home.py)
+camera_profile: home_v1        # colours of the 2026-10-07 fit (data + evals of run officehouse_20261007b); "home" = the live-view look
 mode: left                     # kcare robot mode; drawer@living room uses 'left'
 
 ready_pose:

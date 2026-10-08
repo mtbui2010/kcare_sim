@@ -53,6 +53,12 @@ def main():
         arm_rgb['config'], conn_name='/sim/overview/image_raw/compressed', agent_name='sim_overview')))
     conns.append(dict(arm_rgb, name='sim_topdown', config=dict(       # fixed camera above the whole house
         arm_rgb['config'], conn_name='/sim/topdown/image_raw/compressed', agent_name='sim_topdown')))
+    # the simulation's own control (house_bridge.py /sim/command): reset, move objects, scenes — the Map tab's Sim bar
+    conns.append({'type': 'ros_service', 'name': 'sim_command', 'config': {
+        'conn_name': '/sim/command', 'conn_type': 'ros_service', 'is_client': True, 'agent_name': 'sim_command',
+        'data_interface': 'sim_msgs/srv/SimCommand',
+        'encode_func': "def encode_func(data, req):\n    import json\n    req.request = json.dumps({k: v for k, v in data.items() if k != 'wait'})\n    return req",
+        'decode_func': "def decode_func(res):\n    import json\n    out = json.loads(res.response or '{}')\n    out['isdone'] = bool(out.get('ok'))\n    return out"}})
     json.dump(conns, open(f'{dst}/connections.json', 'w'), indent=2, ensure_ascii=False)
 
     ov = json.load(open(f'{src}/skill_configs_override.json'))
@@ -76,8 +82,17 @@ def main():
             if k in sp:
                 e[k] = sp[k]
         env[key] = e
+    # places saved from the dashboard's Map tab ("source": "map") survive a regeneration
+    if os.path.exists(f'{dst}/skill_configs_override.json'):
+        old = json.load(open(f'{dst}/skill_configs_override.json')).get('ENV', {})
+        env.update({k: v for k, v in old.items() if isinstance(v, dict) and v.get('source') == 'map' and k not in env})
     ov['ENV'] = env
     ov['HOME_LOC'] = {'x': lay['start']['x'], 'y': lay['start']['y'], 'rz': lay['start']['yaw_deg']}
+    ov['MAP'] = map_config(lay, dst)
+    if os.path.exists(f'{dst}/skill_configs_override.json'):     # the user's origin (Map tab) survives too
+        old_map = json.load(open(f'{dst}/skill_configs_override.json')).get('MAP') or {}
+        if 'origin' in old_map:
+            ov['MAP']['origin'] = old_map['origin']
     json.dump(ov, open(f'{dst}/skill_configs_override.json', 'w'), indent=2, ensure_ascii=False)
     for f in ('.env',):
         if os.path.exists(f'{src}/{f}'):
@@ -87,6 +102,39 @@ def main():
     print(f'-> {dst}: {len(conns)} connections, {len(env)} ENV locations; active_location = sim_house')
     for k, e in env.items():
         print(f"   {k:28s} loc ({e['loc']['x']:6.2f}, {e['loc']['y']:6.2f}) rz {e['loc']['rz']:6.1f}  height {e['height']}")
+
+
+def map_config(lay, dst):
+    """The Map tab's config (robotapp MapPanel): picture + layers in house_scene's frames, the skills it calls.
+    Layer files go to <site>/map/ and are served by robot_agent's GET /config/locations/<site>/files/<path>
+    (occupancy.png is written there by house_bridge.py when it starts)."""
+    import house_scene
+    b = lay['bounds']
+    bounds = (*b['x'], *b['y'])
+    os.makedirs(f'{dst}/map', exist_ok=True)
+    hm = f'{SIM}/out/house/heightmap.json'
+    layers = {'occupancy': {'file': 'map/occupancy.png', 'frame': house_scene.occupancy_frame(bounds),
+                            'values': {'free': 0, 'inflated': 128, 'occupied': 255}}}
+    if os.path.exists(hm):                                   # written by house_scene.py
+        shutil.copy(f'{SIM}/out/house/heightmap.png', f'{dst}/map/heightmap.png')
+        layers['height'] = {'file': 'map/heightmap.png', 'frame': json.load(open(hm)), 'unit': 'cm'}
+    surfaces = [{'name': k, 'centre': sp['centre'], 'size': [sp['depth'], sp['width']],
+                 'yaw_deg': sp['front_yaw_deg'], 'height': sp['height']} for k, sp in lay['spots'].items()]
+    return {
+        'image': {'connection': 'sim_topdown', 'frame': house_scene.map_frame(bounds)},
+        'layers': layers,
+        'surfaces': surfaces,
+        'places': 'ENV',
+        # read-only (GET /agent/<name>/get): polling must not clear a pending cancel the way POST /skill does
+        'pose': {'agent': 'mobile_pose', 'x': 'pose.position.x', 'y': 'pose.position.y',
+                 'orientation': 'pose.orientation', 'period_s': 0.5},
+        'goal': {'skill': 'moveb', 'params': {'x': '{x}', 'y': '{y}'}},           # no rz: keep the heading
+        # kcare: `turn` is relative (/mobile/rotate, ignores < 5 deg); `rotate` goes to an ABSOLUTE heading
+        'rotate': {'skill': 'turn', 'params': {'inputs': '{deg}'}, 'step_deg': 15},
+        'lift': {'skill': 'lift', 'params': {'inputs': '{h}'}, 'clearance': 0.10, 'reach_m': 0.8},
+        'confirm_goal': False,
+        'sim': {'agent': 'sim_command'},                     # simulation only: reset / objects / scenes in the Map tab
+    }
 
 
 if __name__ == '__main__':

@@ -1,0 +1,16 @@
+head:
+  ae_target: 150.64
+  color_gain:
+  - 0.957
+  - 1.016
+  - 1.03
+  saturation: 2.14
+wrist:
+  ae_target: 129.92
+  color_gain:
+  - 1.008
+  - 0.996
+  - 0.998
+  saturation: 3.65
+_source: 'calibrate_home.py: sim/assets/real_home/robot_cams/*_drawer.jpg, fridge
+  site, 2026-10-07'

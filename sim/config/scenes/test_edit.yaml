@@ -1,0 +1,11 @@
+furniture:
+  dining_table: {pos: [0.6, -2.2], yaw_deg: 180}
+  dchair0: {remove: true}
+  stool: {remove: true}
+add:
+  - {id: extra_desk, type: desk, pos: [-0.5, 2.6], yaw_deg: 0}
+  - {id: chair_2, type: wood chair, pos: [-0.5, 2.0], yaw_deg: -90}
+objects:
+  - {name: banana, ycb: 011_banana, surface: "extra_desk@living room", offset: [0.1, 0.0], yaw_deg: 20}
+  - {name: apple, ycb: 013_apple, surface: "dining table@kitchen", offset: [0.0, 0.0]}
+  - {name: orange, ycb: 017_orange, at: [0.0, 0.0]}

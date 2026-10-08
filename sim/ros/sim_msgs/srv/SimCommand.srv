@@ -1,0 +1,6 @@
+# One JSON command to the house simulation (house_bridge.py), one JSON reply.
+#   request : {"cmd": "state" | "reset" | "move_object" | "apply" | "save" | "load" | "delete", ...}
+#   response: {"ok": true | false, "msg": "...", ...}
+string request
+---
+string response

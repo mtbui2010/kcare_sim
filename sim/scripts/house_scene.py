@@ -31,7 +31,7 @@ drives the base kinematically (x, y, yaw) like the real nav stack; everything ab
 gripper) is simulated as in the drawer scenes. Small objects are real scanned meshes (YCB, sim/assets/ycb) so
 the open-vocabulary detector used by kcare's `find` sees realistic things.
 """
-import argparse, math, os, re, sys
+import argparse, json, math, os, re, sys
 
 import numpy as np
 import yaml
@@ -171,15 +171,76 @@ def walls_xml():
 
 
 # ── furniture (static bodies built from boxes/cylinders) ──────────────────────
-def body(name, pos, yaw, geoms):
+# ── scenes: variants of the house (sim/config/scenes/<name>.yaml) ───────────────
+#   furniture: {<body>: {pos: [x, y], yaw_deg: a} | {remove: true}}   move / remove a base piece
+#   add:       [{id, type, pos: [x, y], yaw_deg}]                       pieces from CATALOG
+#   objects:   [{name, ycb, surface: <spot>, offset: [u, w], yaw_deg} | {name, ycb, at: [x, y(, z)], yaw_deg | quat}]
+#              (`surface`, not `on`: YAML reads a bare `on` key as true)
+#              (replaces OBJECTS when present)
+#   cabinet_site: nw | fridge
+# Only the CLI build (house_scene.py --scene, the bridge's rebuild) uses a scene; training scenes
+# (drawer_scene_xml) always use the base house.
+SCENES_DIR = f'{SIM}/config/scenes'
+SCENE = {}                    # the scene being built
+FURN = {}                     # body -> {pos, yaw_deg, type, editable}: every placed piece, for the UI
+_MOVED = {}                   # body -> ((x0, y0, a0), (x1, y1, a1)) | None (removed)
+
+
+def use_scene(scene):
+    global SCENE
+    SCENE = dict(scene or {}); FURN.clear(); _MOVED.clear()
+
+
+def load_scene(name):
+    return (yaml.safe_load(open(f'{SCENES_DIR}/{name}.yaml')) or {}) if name else {}
+
+
+def _place(name, pos, yaw):
+    """A scene's override of a furniture body: (pos, yaw), or None when the scene removes it."""
+    o = (SCENE.get('furniture') or {}).get(name)
+    if o and o.get('remove'):
+        _MOVED[name] = None
+        return None
+    if o:
+        p = (o['pos'][0], o['pos'][1], pos[2]) if 'pos' in o else tuple(pos)
+        a = math.radians(o['yaw_deg']) if 'yaw_deg' in o else yaw
+        _MOVED[name] = ((pos[0], pos[1], yaw), (p[0], p[1], a))
+        pos, yaw = p, a
+    return pos, yaw
+
+
+def _register(name, pos, yaw, type_=None, editable=True):
+    FURN[name] = dict(pos=[round(float(pos[0]), 3), round(float(pos[1]), 3)], yaw_deg=round(math.degrees(yaw), 1),
+                      type=type_, editable=editable)
+
+
+def _follow(parent, pos, yaw):
+    """(pos, yaw) of something standing on `parent` after the scene moved it; None if it was removed."""
+    if parent not in _MOVED:
+        return pos, yaw
+    mv = _MOVED[parent]
+    if mv is None:
+        return None
+    (x0, y0, a0), (x1, y1, a1) = mv
+    da, dx, dy = a1 - a0, pos[0] - x0, pos[1] - y0
+    return (x1 + dx * math.cos(da) - dy * math.sin(da), y1 + dx * math.sin(da) + dy * math.cos(da), pos[2]), yaw + da
+
+
+def body(name, pos, yaw, geoms, type_=None, follow=None):
+    pl = _follow(follow, pos, yaw) if follow else _place(name, pos, yaw)
+    if pl is None:
+        return ''
+    pos, yaw = pl
+    if pos[2] == 0:                                   # floor-standing pieces only (not monitors on desks)
+        _register(name, pos, yaw, type_)
     return f'<body name="{name}" pos="{f3(pos)}" quat="{quat_z(yaw)}">{"".join(geoms)}</body>'
 
 
-def table(name, pos, yaw, L, W, H, top=None, top_rgba=WHITE, leg=BLACK, leg_r=0.018):
+def table(name, pos, yaw, L, W, H, top=None, top_rgba=WHITE, leg=BLACK, leg_r=0.018, type_=None):
     g = [box(f'{name}_top', (0, 0, H - 0.015), (L / 2, W / 2, 0.015), top, rgba=top_rgba)]
     for i, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))):
         g.append(cyl(f'{name}_leg{i}', (sx * (L / 2 - 0.05), sy * (W / 2 - 0.05), (H - 0.03) / 2), leg_r, H - 0.03, rgba=leg))
-    return body(name, pos, yaw, g)
+    return body(name, pos, yaw, g, type_)
 
 
 def shell_chair(name, pos, yaw, rgba=OFFWHITE):
@@ -190,7 +251,7 @@ def shell_chair(name, pos, yaw, rgba=OFFWHITE):
          box(f'{name}_armR', (0.08, 0.2, 0.55), (0.14, 0.02, 0.08), rgba=rgba)]
     for i, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))):
         g.append(cyl(f'{name}_leg{i}', (sx * 0.18, sy * 0.18, 0.215), 0.012, 0.43, rgba=rgba))
-    return body(name, pos, yaw, g)
+    return body(name, pos, yaw, g, 'shell chair')
 
 
 def wood_chair(name, pos, yaw):
@@ -198,7 +259,7 @@ def wood_chair(name, pos, yaw):
          box(f'{name}_back', (0.19, 0, 0.7), (0.02, 0.21, 0.12), 'mat_wood_top')]
     for i, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1))):
         g.append(box(f'{name}_leg{i}', (sx * 0.18, sy * 0.18, 0.215), (0.016, 0.016, 0.215), 'mat_wood_top'))
-    return body(name, pos, yaw, g)
+    return body(name, pos, yaw, g, 'wood chair')
 
 
 def office_chair(name, pos, yaw):
@@ -240,12 +301,88 @@ def curtain(name, x, y, w, horiz=False, rgba=CREAM):
     return g
 
 
+def room_of(x, y):
+    for r, (x0, x1, y0, y1) in ROOMS.items():
+        if r != 'hall' and x0 <= x <= x1 and y0 <= y <= y1:
+            return r
+    return 'hall'
+
+
+def _stool(id_, pos, yaw):
+    c = (0.94, 0.92, 0.88, 1)
+    return body(id_, pos, yaw, [
+        box(f'{id_}_top', (0, 0, 0.42), (0.2, 0.2, 0.025), rgba=c),
+        cap(f'{id_}_e0', (-0.2, -0.2, 0.395), (0.2, -0.2, 0.395), 0.05, c), cap(f'{id_}_e1', (-0.2, 0.2, 0.395), (0.2, 0.2, 0.395), 0.05, c),
+        box(f'{id_}_s0', (0, -0.23, 0.2), (0.2, 0.02, 0.2), rgba=c), box(f'{id_}_s1', (0, 0.23, 0.2), (0.2, 0.02, 0.2), rgba=c),
+        box(f'{id_}_shelf', (0, 0, 0.12), (0.19, 0.22, 0.02), rgba=c)], 'stool'), dict(front=0.0, depth=0.4, width=0.52, height=0.445)
+
+
+def _side_table(id_, pos, yaw):
+    return body(id_, pos, yaw, [
+        stadium(f'{id_}_top', (0, 0, 0.6), 0.3, 0.19, 0.03, rgba=OFFWHITE, axis='y'),
+        stadium(f'{id_}_tray', (0, 0, 0.16), 0.24, 0.16, 0.02, rgba=OFFWHITE, axis='y')] +
+        [cyl(f'{id_}_leg{k}', (sx * 0.13, sy * 0.22, 0.3), 0.007, 0.6, rgba=CHROME)
+         for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))], 'side table'), \
+        dict(front=0.0, depth=0.38, width=0.68, height=0.615)
+
+
+def _cabinet(style):
+    def make(id_, pos, yaw):
+        st = dict(cabinet.STYLES[style])
+        xml, _, H = cabinet.cabinet_xml(st, pos=pos, yaw=yaw, name=id_)
+        return xml, dict(front=math.pi, depth=st['depth'], width=st['width'], height=round(H, 3))
+    return make
+
+
+def _shelf(id_, pos, yaw, wire=False):
+    c = (0.92, 0.92, 0.92, 1) if wire else OFFWHITE
+    g = ([cyl(f'{id_}_post{k}', (sx * 0.21, sy * 0.16, 0.85), 0.009, 1.7, rgba=c) for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))] +
+         [box(f'{id_}_tier{k}', (0, 0, z), (0.22, 0.17, 0.006), rgba=c) for k, z in enumerate((0.06, 0.45, 0.85, 1.25, 1.65))]) if wire else \
+        ([box(f'{id_}_side0', (0, -0.4, 0.9), (0.2, 0.01, 0.9), rgba=c), box(f'{id_}_side1', (0, 0.4, 0.9), (0.2, 0.01, 0.9), rgba=c)] +
+         [box(f'{id_}_board{k}', (0, 0, 0.05 + 0.44 * k), (0.2, 0.39, 0.01), rgba=c) for k in range(5)])
+    return body(id_, pos, yaw, g, 'wire shelf' if wire else 'storage shelf'), None
+
+
+# Pieces a scene can add (and the dashboard offers). make(id, pos, yaw) -> (xml, surface or None);
+# surface: front = the direction its front faces relative to yaw, depth / width / height [m].
+CATALOG = {
+    'desk':          dict(label='desk 1.0 × 0.6 m', make=lambda i, p, a: (table(i, p, a, 1.0, 0.6, 0.72, top_rgba=OFFWHITE, type_='desk'), dict(front=-math.pi / 2, depth=0.6, width=1.0, height=0.72))),
+    'dining table':  dict(label='table 1.2 × 0.75 m', make=lambda i, p, a: (table(i, p, a, 1.2, 0.75, 0.74, top_rgba=OFFWHITE, leg=OFFWHITE, type_='dining table'), dict(front=-math.pi / 2, depth=0.75, width=1.2, height=0.74))),
+    'coffee table':  dict(label='low table 0.9 × 0.5 m', make=lambda i, p, a: (table(i, p, a, 0.9, 0.5, 0.42, top_rgba=(0.8, 0.7, 0.55, 1), type_='coffee table'), dict(front=-math.pi / 2, depth=0.5, width=0.9, height=0.42))),
+    'side table':    dict(label='oval side table', make=_side_table),
+    'stool':         dict(label='upholstered stool', make=_stool),
+    'chest':         dict(label='white chest, 3 drawers', make=_cabinet('W_chest')),
+    'pedestal':      dict(label='pedestal cabinet (grey/wood)', make=_cabinet('A_home')),
+    'shell chair':   dict(label='white shell chair', make=lambda i, p, a: (shell_chair(i, p, a), None)),
+    'wood chair':    dict(label='wooden chair', make=lambda i, p, a: (wood_chair(i, p, a), None)),
+    'office chair':  dict(label='office chair', make=lambda i, p, a: (office_chair(i, p, a), None)),
+    'wire shelf':    dict(label='wire shelf 5 tiers', make=lambda i, p, a: _shelf(i, p, a, wire=True)),
+    'storage shelf': dict(label='white storage shelf', make=_shelf),
+}
+
+
+def ycb_catalog():
+    """YCB scans available in sim/assets/ycb (sim/scripts/fetch_ycb.sh)."""
+    d = f'{SIM}/assets/ycb'
+    return sorted(n for n in os.listdir(d) if os.path.exists(f'{d}/{n}/google_16k/textured.obj')) if os.path.isdir(d) else []
+
+
 def furniture(cab_style=None, site=None):
     """(xml, spots). A spot = a surface the robot can visit: kcare ENV entry material."""
     F, spots = [], {}
 
-    def spot(key, room, centre, yaw_front, depth, width, height, mode='left', **extra):
-        """centre: surface centre (x, y); yaw_front: direction the front faces (toward where the robot stands)."""
+    def spot(key, room, centre, yaw_front, depth, width, height, mode='left', body=None, **extra):
+        """centre: surface centre (x, y); yaw_front: direction the front faces (toward where the robot stands).
+        body: the furniture it belongs to — moved / removed with it by a scene."""
+        if body is not None and body in _MOVED:
+            mv = _MOVED[body]
+            if mv is None:
+                return                                         # its furniture was removed
+            (x0, y0, a0), (x1, y1, a1) = mv
+            da = a1 - a0
+            dx, dy = centre[0] - x0, centre[1] - y0
+            centre = (x1 + dx * math.cos(da) - dy * math.sin(da), y1 + dx * math.sin(da) + dy * math.cos(da))
+            yaw_front += da
         spots[f'{key}@{room}'] = dict(centre=[round(float(centre[0]), 3), round(float(centre[1]), 3)],
                                       front_yaw_deg=round(math.degrees(yaw_front), 1),
                                       depth=float(depth), width=float(width), height=float(height),
@@ -270,15 +407,12 @@ def furniture(cab_style=None, site=None):
         cap('sofa_arm_top', (0.86, -0.38, 0.62), (0.86, 0.38, 0.62), 0.09, sofa),
         box('sofa_pillow', (-0.75, -0.17, 0.62), (0.17, 0.07, 0.15), rgba=(0.97, 0.96, 0.93, 1)).replace('/>', ' euler="0.25 0 0.2"/>'),
         box('sofa_seam', (-0.09, 0.3, 0.42), (0.004, 0.09, 0.05), rgba=(0.8, 0.79, 0.75, 1), extra=VIS)]))
-    # oval two-tier side table (photo): white rim with a blue-grey inset top, white lower tray, chrome legs;
-    # long axis away from the wall
+    # oval two-tier side table: white top and lower tray, chrome legs, nothing on it; long axis away from the wall
     F.append(body('side_table', (-1.38, 1.85, 0), math.pi / 2, [
         stadium('stab_top', (0, 0, 0.6), 0.3, 0.19, 0.03, rgba=OFFWHITE, axis='y'),
-        stadium('stab_inset', (0, 0, 0.616), 0.3, 0.16, 0.002, rgba=(0.24, 0.31, 0.39, 1), axis='y', extra=VIS),
         stadium('stab_tray', (0, 0, 0.16), 0.24, 0.16, 0.02, rgba=OFFWHITE, axis='y')] +
         [cyl(f'stab_leg{k}', (sx * 0.13, sy * 0.22, 0.3), 0.007, 0.6, rgba=CHROME)
-         for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))] +
-        [box('stab_remote', (0.05, 0.05, 0.18), (0.02, 0.08, 0.008), rgba=BLACK, extra=VIS)]))
+         for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))]))
     F.append(body('tv_stand', (1.67, 2.6, 0), -math.pi / 2, [
         box('tv_stand_box', (0, 0, 0.2), (0.8, 0.18, 0.2), rgba=OFFWHITE),
         box('tv_stand_gap', (0, -0.181, 0.2), (0.78, 0.001, 0.005), rgba=(0.8, 0.8, 0.8, 1), extra=VIS),
@@ -286,10 +420,10 @@ def furniture(cab_style=None, site=None):
         box('tv_foot', (0, 0.02, 0.41), (0.12, 0.08, 0.01), rgba=(0.1, 0.1, 0.1, 1))]))
     # ── study room: desk on its west wall
     F.append(table('study_desk', (2.25, 2.5, 0), math.pi / 2, 1.0, 0.6, 0.72, top_rgba=OFFWHITE))
-    F.append(body('study_monitor', (2.08, 2.5, 0.72), math.pi / 2, [
+    F.append(body('study_monitor', (2.08, 2.5, 0.72), math.pi / 2, follow='study_desk', geoms=[
         box('smonitor_screen', (0, 0, 0.3), (0.3, 0.015, 0.18), rgba=(0.05, 0.05, 0.06, 1)),
         box('smonitor_stand', (0, 0.02, 0.06), (0.06, 0.06, 0.06), rgba=(0.15, 0.15, 0.16, 1))]))
-    spot('desk', 'study room', (2.25, 2.5), 0.0, 0.6, 1.0, 0.72)
+    spot('desk', 'study room', (2.25, 2.5), 0.0, 0.6, 1.0, 0.72, body='study_desk')
 
     # ── the open-drawer cabinet (style A_home = the A_real pedestal + casters), drawio 'Drawer': kitchen north-west
     #    corner, back on the warehouse wall, front facing east. ROBOT_AT_DRAWER puts the robot base where the
@@ -301,6 +435,7 @@ def furniture(cab_style=None, site=None):
     cab_xy = cab[:2]
     vla_cab, _, vla_H = cabinet.cabinet_xml(dict(cab_style or cabinet.STYLES['A_home']), pos=(*cab_xy, 0), yaw=cab[2], name='cab')
     F.append(vla_cab)
+    _register('cab', (*cab_xy, 0), cab[2], 'vla cabinet', editable=False)
     spot('drawer', 'kitchen', cab_xy, cab[2] + math.pi, 0.5, 0.4, round(vla_H, 3), site=site,
          handle='gray handle', handle_height=0.436, aliases=['drawer@living room'],
          robot_pose=dict(x=round(rx, 3), y=round(ry, 3), heading_deg=round(math.degrees(rh), 2)))
@@ -328,7 +463,7 @@ def furniture(cab_style=None, site=None):
         [box(f'counter_door{k}', (-0.15 + 0.35 * k, 0.301, 0.46), (0.001, 0.001, 0.38), rgba=seam, extra=VIS) for k in range(3)] +
         [box(f'counter_drawer{k}', (-0.7, 0.301, z), (0.2, 0.001, 0.0015), rgba=seam, extra=VIS) for k, z in enumerate((0.3, 0.6))] +
         [box(f'upper_seam{k}', (-0.9 + 0.3 * k, 0.061, 1.925), (0.0015, 0.001, 0.47), rgba=seam, extra=VIS) for k in range(1, 6)]))
-    spot('counter', 'kitchen', (-0.8, -3.63), math.pi / 2, 0.64, 1.8, 0.9)
+    spot('counter', 'kitchen', (-0.8, -3.63), math.pi / 2, 0.64, 1.8, 0.9, body='counter')
     # tall unit: closed cabinet on top, open niches with rice cooker / microwave, cupboard below
     F.append(body('kitchen_shelf', (0.42, -3.72, 0), 0, [
         box('kshelf_side0', (-0.3, 0, 1.2), (0.012, 0.27, 1.2), rgba=flat_w),
@@ -343,7 +478,7 @@ def furniture(cab_style=None, site=None):
          box('microwave_door', (-0.04, 0.201, 1.02), (0.16, 0.002, 0.11), rgba=(0.12, 0.12, 0.13, 1), extra=VIS),
          cyl('rice_cooker', (0, 0.02, 1.34), 0.13, 0.25, rgba=(0.95, 0.95, 0.95, 1)),
          cyl('rice_cooker_lid', (0, 0.02, 1.47), 0.1, 0.01, rgba=(0.55, 0.42, 0.3, 1), extra=VIS)]))
-    spot('shelf', 'kitchen', (0.42, -3.72), math.pi / 2, 0.52, 0.58, 0.512)
+    spot('shelf', 'kitchen', (0.42, -3.72), math.pi / 2, 0.52, 0.58, 0.512, body='kitchen_shelf')
     # white 5-tier wire shelf: air fryer, bottles, boxes
     wire = (0.92, 0.92, 0.92, 1)
     F.append(body('wire_shelf', (0.96, -3.8, 0), 0,
@@ -356,14 +491,15 @@ def furniture(cab_style=None, site=None):
          box('wshelf_box', (0.1, 0.0, 1.0), (0.09, 0.12, 0.14), rgba=(0.85, 0.35, 0.3, 1)),
          box('wshelf_basket', (0.0, 0.0, 0.17), (0.18, 0.13, 0.1), rgba=(0.97, 0.97, 0.97, 1))]))
     # white table with one rounded end (photo), flat end on the east wall; a white shell chair
-    F.append(body('dining_table', (1.18, -2.81, 0), math.pi, [
+    F.append(body('dining_table', (1.18, -2.2, 0), math.pi, [
         box('dtable_mid', (-0.19, 0, 0.73), (0.54, 0.31, 0.015), rgba=OFFWHITE),
         cyl('dtable_end', (0.35, 0, 0.73), 0.31, 0.03, rgba=OFFWHITE),
         cyl('dtable_mat', (0.3, 0.05, 0.746), 0.1, 0.002, rgba=(0.6, 0.78, 0.72, 1), extra=VIS)] +
         [cyl(f'dtable_leg{k}', (sx, sy * 0.22, 0.36), 0.018, 0.71, rgba=OFFWHITE)
          for k, (sx, sy) in enumerate(((0.45, 1), (0.45, -1), (-0.65, 1), (-0.65, -1)))]))
-    spot('dining table', 'kitchen', (1.18, -2.81), math.pi / 2, 0.62, 1.39, 0.745)
-    F += [shell_chair('dchair0', (1.3, -2.15, 0), math.pi / 2)]
+    # the fridge is just north of the table, so kcare approaches it from the west (the rounded end)
+    spot('dining table', 'kitchen', (1.18, -2.2), math.pi, 1.39, 0.62, 0.745, body='dining_table')
+    F += [shell_chair('dchair0', (1.3, -2.85, 0), -math.pi / 2)]          # south of the table, facing it
     # TCL 4-door fridge: full-height centre split, a horizontal split low down, recessed handles, display
     F.append(body('fridge', (1.55, -1.25, 0), -math.pi / 2, [
         box('fridge_body', (0, 0, 0.92), (0.36, 0.35, 0.92), rgba=(0.95, 0.95, 0.95, 1)),
@@ -383,7 +519,7 @@ def furniture(cab_style=None, site=None):
     F.append(body('washer', (-2.64, -3.0, 0), -math.pi / 2, [
         box('washer_body', (0, 0, 0.43), (0.3, 0.3, 0.43), rgba=(0.94, 0.94, 0.94, 1)),
         f'<geom name="washer_door" type="cylinder" fromto="0 0.30 0.4 0 0.305 0.4" size="0.19" rgba="0.2 0.2 0.22 1" {VIS}/>']))
-    spot('washer', 'laundry room', (-2.64, -3.0), 0.0, 0.6, 0.6, 0.86)
+    spot('washer', 'laundry room', (-2.64, -3.0), 0.0, 0.6, 0.6, 0.86, body='washer')
     F.append(body('laundry_shelf', (-2.55, -3.78, 0), math.pi / 2, [
         box('lshelf_side0', (0, -0.3, 0.8), (0.2, 0.01, 0.8), rgba=OFFWHITE),
         box('lshelf_side1', (0, 0.3, 0.8), (0.2, 0.01, 0.8), rgba=OFFWHITE)] +
@@ -424,17 +560,21 @@ def furniture(cab_style=None, site=None):
     F += [f'<body name="bedroom_window">{"".join(window("win_b", 4.0, -4.33, -3.78, 0.05, 2.15, (0.12, 0.13, 0.15, 1), horiz=True))}'
           f'{"".join(curtain("curt_b0", 3.9, -4.4, 0.12, horiz=True) + curtain("curt_b1", 3.9, -3.72, 0.1, horiz=True))}</body>']
     chest_st = dict(cabinet.STYLES['W_chest'])
-    chest_body, _, chest_H = cabinet.cabinet_xml(chest_st, pos=(-4.23, 0.1, 0), yaw=math.pi, name='chest')
-    F.append(chest_body)
+    chest_pl = _place('chest', (-4.23, 0.1, 0), math.pi)
+    chest_H = chest_st['plinth'] + sum(chest_st['drawers']) + chest_st.get('top_extra', 0.0) + cabinet.T
+    if chest_pl:
+        chest_body, _, chest_H = cabinet.cabinet_xml(chest_st, pos=chest_pl[0], yaw=chest_pl[1], name='chest')
+        F.append(chest_body)
+        _register('chest', chest_pl[0], chest_pl[1], 'chest')
     # white desk organizer with scalloped dividers on the back right of the chest, a white board leaning on the wall
-    F.append(body('chest_organizer', (-4.23, 0.1, chest_H), 0, [
+    F.append(body('chest_organizer', (-4.23, 0.1, chest_H), 0, follow='chest', geoms=[
         box('organizer_base', (-0.09, 0.2, 0.006), (0.1, 0.19, 0.006), rgba=OFFWHITE),
         box('organizer_back', (-0.18, 0.2, 0.08), (0.008, 0.19, 0.08), rgba=OFFWHITE)] +
         [box(f'organizer_div{k}', (-0.09, 0.02 + 0.09 * k, 0.05), (0.1, 0.005, 0.05), rgba=OFFWHITE) for k in range(5)]))
     F.append(body('leaning_board', (-4.38, 1.65, 0), 0, [
         box('board', (0, 0, 0.55), (0.012, 0.3, 0.55), rgba=(0.97, 0.97, 0.96, 1)).replace('/>', ' euler="0 -0.12 0"/>')]))
     spot('chest', 'bedroom', (-4.23, 0.1), 0.0, chest_st['depth'], chest_st['width'], round(chest_H, 3),
-         handle='gold knob', handle_height=round(chest_st['plinth'] + 2.5 * 0.2, 3))
+         handle='gold knob', handle_height=round(chest_st['plinth'] + 2.5 * 0.2, 3), body='chest')
     # cream upholstered waterfall side table: rounded top slab, rounded sides, low shelf
     st_c = (0.94, 0.92, 0.88, 1)
     F.append(body('stool', (-4.25, 0.95, 0), 0, [
@@ -444,7 +584,7 @@ def furniture(cab_style=None, site=None):
         box('stool_side0', (0, -0.23, 0.2), (0.2, 0.02, 0.2), rgba=st_c),
         box('stool_side1', (0, 0.23, 0.2), (0.2, 0.02, 0.2), rgba=st_c),
         box('stool_shelf', (0, 0, 0.12), (0.19, 0.22, 0.02), rgba=st_c)]))
-    spot('stool', 'bedroom', (-4.25, 0.95), 0.0, 0.4, 0.52, 0.445)
+    spot('stool', 'bedroom', (-4.25, 0.95), 0.0, 0.4, 0.52, 0.445, body='stool')
 
     # ── dress room (photo): along its west wall an open white hanging unit, a drawer unit under a hanging rail of
     #    clothes, a mirror panel, curved corner shelves with bags
@@ -498,7 +638,7 @@ def furniture(cab_style=None, site=None):
         cyl('basin_tap', (0.12, 0, 0.98), 0.013, 0.2, rgba=CHROME)]))
     F.append(body('bath_shelf', (2.88, -1.5, 0), math.pi, [box('bath_shelf_board', (0, 0, 0.94), (0.1, 0.3, 0.012), rgba=OFFWHITE),
                                                   box('bath_shelf_back', (0.09, 0, 0.9), (0.01, 0.3, 0.05), rgba=OFFWHITE)]))
-    spot('shelf', 'restroom', (2.88, -1.5), 0.0, 0.2, 0.6, 0.952)
+    spot('shelf', 'restroom', (2.88, -1.5), 0.0, 0.2, 0.6, 0.952, body='bath_shelf')
     F.append(body('toilet', (5.12, -1.7, 0), 0, [
         ell('toilet_bowl', (-0.05, 0, 0.3), (0.26, 0.19, 0.12), rgba=(0.97, 0.97, 0.97, 1)),
         box('toilet_base', (0.05, 0, 0.14), (0.15, 0.13, 0.14), rgba=(0.97, 0.97, 0.97, 1)),
@@ -508,6 +648,13 @@ def furniture(cab_style=None, site=None):
         box('towel', (0.03, 0, 1.2), (0.012, 0.18, 0.25), rgba=(0.55, 0.75, 0.72, 1))]))
     F.append(body('shower', (5.4, -3.3, 0), 0, [cyl('shower_pole', (0, 0, 1.6), 0.012, 1.2, rgba=CHROME),
                                                box('shower_head', (-0.05, 0, 2.2), (0.05, 0.04, 0.02), rgba=CHROME)]))
+    for it in SCENE.get('add') or []:                      # pieces added by the scene, from CATALOG
+        x, y = it['pos']; a = math.radians(it.get('yaw_deg', 0.0))
+        xml, sp = CATALOG[it['type']]['make'](it['id'], (x, y, 0.0), a)
+        F.append(xml)
+        _register(it['id'], (x, y, 0.0), a, it['type'])
+        if sp:
+            spot(it['id'], room_of(x, y), (x, y), a + sp['front'], sp['depth'], sp['width'], sp['height'])
     return ''.join(F), spots
 
 
@@ -523,8 +670,8 @@ OBJECTS = [
     ('tomato soup can', '005_tomato_soup_can', 'counter@kitchen', (-0.27, 0.08), 0),
     ('pitcher', '019_pitcher_base', 'counter@kitchen', (-0.16, 0.05), 0),
     ('sugar box', '004_sugar_box', 'counter@kitchen', (0.77, 0.12), 20),
-    ('bowl', '024_bowl', 'dining table@kitchen', (0.2, 0.0), 0),
-    ('plate', '029_plate', 'dining table@kitchen', (-0.3, 0.05), 0),
+    ('bowl', '024_bowl', 'dining table@kitchen', (0.12, -0.25), 0),
+    ('plate', '029_plate', 'dining table@kitchen', (-0.12, 0.2), 0),
     ('bleach bottle', '021_bleach_cleanser', 'washer@laundry room', (0.1, 0.0), 0),
     ('red cup', '065-a_cups', 'chest@bedroom', (-0.2, -0.08), 0),
     ('tennis ball', '056_tennis_ball', 'stool@bedroom', (0.0, 0.0), 0),
@@ -539,26 +686,62 @@ def mesh_min_z(path):
     return min(zs)
 
 
+def _surface_at(spots, x, y):
+    """Height of the spot surface containing (x, y), else the floor."""
+    for sp in spots.values():
+        fy = math.radians(sp['front_yaw_deg']); dx, dy = x - sp['centre'][0], y - sp['centre'][1]
+        u, v = dx * math.cos(fy) + dy * math.sin(fy), -dx * math.sin(fy) + dy * math.cos(fy)
+        if abs(u) <= sp['depth'] / 2 and abs(v) <= sp['width'] / 2:
+            return sp['height']
+    return 0.0
+
+
+def scene_objects():
+    """The objects of the scene being built, as dicts (OBJECTS when the scene has no list)."""
+    if 'objects' in SCENE:
+        return list(SCENE['objects'] or [])
+    return [dict(name=n, ycb=y, surface=sp, offset=list(off), yaw_deg=a) for n, y, sp, off, a in OBJECTS]
+
+
 def objects_xml(spots):
     assets, bodies, placed = [], [], {}
-    for name, ycb, spot_key, (u, w), yaw_deg in OBJECTS:
-        sp = spots[spot_key]
-        cx, cy = sp['centre']
-        fy = math.radians(sp['front_yaw_deg'])
-        along = np.array([-math.sin(fy), math.cos(fy)])            # along the front edge
-        inward = -np.array([math.cos(fy), math.sin(fy)])           # from the front edge into the surface
-        p = np.array([cx, cy]) + along * u + inward * w
+    for ob in scene_objects():
+        name, ycb = ob['name'], ob['ycb']
         obj = f'{SIM}/assets/ycb/{ycb}/google_16k/textured.obj'
-        z = sp['height'] - mesh_min_z(obj) + 0.002
+        if not os.path.exists(obj):
+            print(f'[house_scene] skipped {name}: no YCB model {ycb}'); continue
+        quat = quat_z(math.radians(ob.get('yaw_deg', 0.0)))
+        if 'at' in ob:                                         # a point, or a saved live pose [x, y, z] (+ quat)
+            p = ob['at']
+            z = p[2] if len(p) > 2 else _surface_at(spots, p[0], p[1]) - mesh_min_z(obj) + 0.002
+            p = np.array(p[:2], float)
+            if ob.get('quat'):
+                quat = ' '.join(f'{v:.6f}' for v in ob['quat'])
+            on = None
+        else:
+            on = ob.get('surface') or ob.get('on') or ob.get(True)       # True: an unquoted YAML `on:` key
+            if on not in spots:
+                print(f'[house_scene] skipped {name}: no surface {on!r} in this scene'); continue
+            sp = spots[on]
+            cx, cy = sp['centre']
+            fy = math.radians(sp['front_yaw_deg'])
+            along = np.array([-math.sin(fy), math.cos(fy)])        # along the front edge
+            inward = -np.array([math.cos(fy), math.sin(fy)])       # from the front edge into the surface
+            u, w = ob.get('offset', [0.0, 0.0])
+            p = np.array([cx, cy]) + along * u + inward * w
+            z = sp['height'] - mesh_min_z(obj) + 0.002
         tag = re.sub(r'[^a-z0-9]', '_', name)
         assets.append(f'<mesh name="m_{tag}" file="{YCB}/{ycb}/google_16k/textured.obj"/>'
                       f'<texture name="t_{tag}" type="2d" file="{YCB}/{ycb}/google_16k/texture_map.png"/>'
                       f'<material name="mt_{tag}" texture="t_{tag}"/>')
-        bodies.append(f'<body name="obj_{tag}" pos="{p[0]:.4f} {p[1]:.4f} {z:.4f}" quat="{quat_z(math.radians(yaw_deg))}">'
+        bodies.append(f'<body name="obj_{tag}" pos="{p[0]:.4f} {p[1]:.4f} {z:.4f}" quat="{quat}">'
                       f'<freejoint name="obj_{tag}_free"/>'
                       f'<geom name="obj_{tag}" type="mesh" mesh="m_{tag}" material="mt_{tag}" density="400" '
                       f'friction="1.0 0.01 0.001" condim="4"/></body>')
-        placed[name] = dict(ycb=ycb, on=spot_key, pos=[round(float(v), 3) for v in (p[0], p[1], z)])
+        placed[name] = dict(ycb=ycb, on=on, body=f'obj_{tag}', pos=[round(float(v), 3) for v in (p[0], p[1], z)],
+                            spec={k: ob[k] for k in ('surface', 'offset', 'yaw_deg') if k in ob} if on else None)
+        if on and 'surface' not in placed[name]['spec']:
+            placed[name]['spec']['surface'] = on
     return ''.join(assets), ''.join(bodies), placed
 
 
@@ -645,7 +828,54 @@ def drawer_scene_xml(cab_style, centre, yaw, rand):
     return xml
 
 
-def build():
+# ── map layers for the dashboard's Map tab (robotapp) ─────────────────────────
+# Frames follow ROS map.yaml: `origin` = world (x, y) of the image's bottom-left corner, `resolution` m/px,
+# image row 0 = the top (largest y), x to the right.
+MAP_MARGIN = 0.3
+
+
+def map_frame(bounds=None, width_px=960, margin=MAP_MARGIN):
+    """Frame of the top-down camera image (house_bridge renders it orthographic with exactly this frame)."""
+    x0, x1, y0, y1 = bounds or BOUNDS
+    res = (x1 - x0 + 2 * margin) / width_px
+    return dict(resolution=round(res, 6), origin=[x0 - margin, y0 - margin], width=width_px,
+                height=int(round((y1 - y0 + 2 * margin) / res)))
+
+
+def occupancy_frame(bounds=None, res=0.05):
+    """Frame of house_bridge.Planner's grid: house bounds + 0.5 m margin."""
+    x0, x1, y0, y1 = bounds or BOUNDS
+    return dict(resolution=res, origin=[x0 - 0.5, y0 - 0.5], width=int((x1 - x0 + 1.0) / res),
+                height=int((y1 - y0 + 1.0) / res))
+
+
+def heightmap(res=0.04, top=3.0):
+    """Height of the highest static surface under each map cell [cm, uint8: browsers decode PNGs to 8 bit]
+    (walls, ceiling and the robot left out), one vertical ray per cell -> out/house/heightmap.png + .json."""
+    import cv2, mujoco
+    m = mujoco.MjModel.from_xml_path(f'{SIM}/mjcf/house.xml'); d = mujoco.MjData(m)
+    d.mocap_pos[:] = [50.0, 50.0, 0.0]                      # the robot out of the way
+    mujoco.mj_forward(m, d)
+    fr = map_frame(); x0, y0 = fr['origin']
+    W, H = int(round(fr['width'] * fr['resolution'] / res)), int(round(fr['height'] * fr['resolution'] / res))
+    groups = np.array([1, 1, 0, 1, 1, 1], np.uint8)            # group 2 = walls, lintels, ceiling
+    gid = np.zeros(1, np.int32); vec = np.array([0.0, 0.0, -1.0])
+    hm = np.zeros((H, W), np.uint8)
+    for r in range(H):
+        y = y0 + (H - r - 0.5) * res
+        for c in range(W):
+            dist = mujoco.mj_ray(m, d, np.array([x0 + (c + 0.5) * res, y, top]), vec, groups, 1, -1, gid)
+            hm[r, c] = 0 if dist < 0 else min(255, int(round(max(0.0, top - dist) * 100)))
+    out = f'{SIM}/out/house'; os.makedirs(out, exist_ok=True)
+    cv2.imwrite(f'{out}/heightmap.png', hm)
+    frame = dict(resolution=res, origin=[x0, y0], width=W, height=H, unit='cm')
+    json.dump(frame, open(f'{out}/heightmap.json', 'w'))
+    print(f'-> {out}/heightmap.png  {W}x{H} @ {res} m, max {hm.max()} cm')
+    return frame
+
+
+def build(scene_name=None):
+    use_scene(load_scene(scene_name))
     robot_mobile_xml()
     xml, spots, placed = house_xml()
     open(f'{SIM}/mjcf/house.xml', 'w').write(xml)
@@ -653,10 +883,41 @@ def build():
                   walls=[dict(p0=[w[0], w[1]], p1=[w[2], w[3]], doors=[list(d) for d in w[4]]) for w in WALLS],
                   spots=spots, objects=placed, start=dict(x=0.0, y=0.0, yaw_deg=0.0),
                   bounds=dict(x=[BOUNDS[0], BOUNDS[1]], y=[BOUNDS[2], BOUNDS[3]]), cab_site=CAB_SITE,
+                  scene=scene_name or '', furniture=footprints(dict(FURN)),
+                  catalog=dict(furniture={k: v['label'] for k, v in CATALOG.items()}, objects=ycb_catalog()),
                   source='docs/draws/floor.drawio (owner, 2026-10-07); looks from the owner photos + home_tour.mp4')
     yaml.safe_dump(layout, open(f'{SIM}/config/house_layout.yaml', 'w'), sort_keys=False, allow_unicode=True)
     print(f'-> {SIM}/mjcf/house.xml   {len(spots)} spots, {len(placed)} objects')
     return layout
+
+
+def footprints(furn):
+    """Oriented xy box of every placed piece (from its compiled geoms), for the dashboard to draw and drag."""
+    import mujoco
+    m = mujoco.MjModel.from_xml_path(f'{SIM}/mjcf/house.xml'); d = mujoco.MjData(m); mujoco.mj_forward(m, d)
+    for name, f in furn.items():
+        bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, name)
+        if bid < 0:
+            continue
+        a = math.radians(f['yaw_deg']); ca, sa = math.cos(a), math.sin(a)
+        us, vs = [], []
+        for g in range(m.ngeom):
+            b = m.geom_bodyid[g]
+            while b > 0 and b != bid:
+                b = m.body_parentid[b]
+            if b != bid:
+                continue
+            c, h = m.geom_aabb[g][:3], m.geom_aabb[g][3:]
+            corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]) * h + c
+            w = corners @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g]
+            dx, dy = w[:, 0] - f['pos'][0], w[:, 1] - f['pos'][1]
+            us += list(dx * ca + dy * sa); vs += list(-dx * sa + dy * ca)
+        if us:
+            u0, u1, v0, v1 = min(us), max(us), min(vs), max(vs)
+            cu, cv = (u0 + u1) / 2, (v0 + v1) / 2
+            f['footprint'] = dict(centre=[round(float(f['pos'][0] + cu * ca - cv * sa), 3), round(float(f['pos'][1] + cu * sa + cv * ca), 3)],
+                                  size=[round(float(u1 - u0), 3), round(float(v1 - v0), 3)], yaw_deg=f['yaw_deg'])
+    return furn
 
 
 def _cam(eye, tgt):
@@ -737,9 +998,23 @@ def render(layout):
     print('->', out)
 
 
+def active_scene():
+    """The scene the live house was last built with (config/scenes/_active), '' = the base house."""
+    try:
+        return open(f'{SCENES_DIR}/_active').read().strip()
+    except FileNotFoundError:
+        return ''
+
+
 if __name__ == '__main__':
-    ap = argparse.ArgumentParser(); ap.add_argument('--render', action='store_true')
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--render', action='store_true')
+    ap.add_argument('--scene', default=None, help="config/scenes/<name>.yaml ('' = base house; default: the active one)")
     a = ap.parse_args()
-    lay = build()
+    name = active_scene() if a.scene is None else a.scene
+    lay = build(name or None)
+    os.makedirs(SCENES_DIR, exist_ok=True)
+    open(f'{SCENES_DIR}/_active', 'w').write((name or '') + '\n')
+    heightmap()
     if a.render:
         render(lay)
