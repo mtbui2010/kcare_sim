@@ -1,0 +1,253 @@
+bench:
+  seed: 100
+objects:
+- name: softball
+  ycb: 054_softball
+  surface: desk@study room
+  offset:
+  - -0.027
+  - 0.094
+  yaw_deg: 83.5
+  bench:
+    from_front: 0.394
+    target: true
+- name: screwdriver
+  ycb: 043_phillips_screwdriver
+  surface: desk@study room
+  offset:
+  - 0.004
+  - -0.154
+  yaw_deg: 85.2
+  bench:
+    from_front: 0.146
+    target: true
+- name: soup can
+  ycb: 005_tomato_soup_can
+  surface: drawer@kitchen
+  offset:
+  - 0.142
+  - -0.145
+  yaw_deg: -97.3
+  bench:
+    from_front: 0.105
+    target: true
+- name: peach
+  ycb: 015_peach
+  surface: drawer@kitchen
+  offset:
+  - 0.146
+  - -0.02
+  yaw_deg: -46.8
+  bench:
+    from_front: 0.23
+    target: true
+- name: orange
+  ycb: 017_orange
+  surface: drawer@kitchen
+  offset:
+  - 0.138
+  - 0.16
+  yaw_deg: -40.4
+  bench:
+    from_front: 0.41
+    target: true
+- name: green cup
+  ycb: 065-c_cups
+  surface: counter@kitchen
+  offset:
+  - 0.154
+  - -0.209
+  yaw_deg: 42.8
+  bench:
+    from_front: 0.111
+    target: true
+- name: mug
+  ycb: 025_mug
+  surface: counter@kitchen
+  offset:
+  - 0.025
+  - 0.235
+  yaw_deg: -35.4
+  bench:
+    from_front: 0.555
+    target: true
+- name: spray bottle
+  ycb: 022_windex_bottle
+  surface: counter@kitchen
+  offset:
+  - 0.015
+  - -0.103
+  yaw_deg: 81.8
+  bench:
+    from_front: 0.217
+    target: true
+- name: sponge
+  ycb: 026_sponge
+  surface: counter@kitchen
+  offset:
+  - -0.1
+  - -0.213
+  yaw_deg: -110.6
+  bench:
+    from_front: 0.107
+    target: true
+- name: jello box
+  ycb: 009_gelatin_box
+  surface: shelf@kitchen
+  offset:
+  - 0.132
+  - -0.109
+  yaw_deg: 157.1
+  bench:
+    from_front: 0.151
+    target: true
+- name: strawberry
+  ycb: 012_strawberry
+  surface: shelf@kitchen
+  offset:
+  - -0.243
+  - -0.081
+  yaw_deg: -135.7
+  bench:
+    from_front: 0.179
+    target: true
+- name: baseball
+  ycb: 055_baseball
+  surface: shelf@kitchen
+  offset:
+  - -0.03
+  - -0.095
+  yaw_deg: 38.3
+  bench:
+    from_front: 0.165
+    target: true
+- name: plum
+  ycb: 018_plum
+  surface: shelf@kitchen
+  offset:
+  - -0.049
+  - 0.14
+  yaw_deg: -152.1
+  bench:
+    from_front: 0.4
+    target: true
+- name: pitcher
+  ycb: 019_pitcher_base
+  surface: dining table@kitchen
+  offset:
+  - 0.196
+  - -0.538
+  yaw_deg: 75.8
+  bench:
+    from_front: 0.157
+    target: false
+- name: lemon
+  ycb: 014_lemon
+  surface: dining table@kitchen
+  offset:
+  - -0.163
+  - -0.454
+  yaw_deg: -179.0
+  bench:
+    from_front: 0.241
+    target: true
+- name: sugar box
+  ycb: 004_sugar_box
+  surface: dining table@kitchen
+  offset:
+  - 0.247
+  - 0.078
+  yaw_deg: -96.5
+  bench:
+    from_front: 0.773
+    target: true
+- name: cracker box
+  ycb: 003_cracker_box
+  surface: dining table@kitchen
+  offset:
+  - 0.21
+  - -0.169
+  yaw_deg: 62.6
+  bench:
+    from_front: 0.526
+    target: true
+- name: apple
+  ycb: 013_apple
+  surface: washer@laundry room
+  offset:
+  - 0.237
+  - -0.104
+  yaw_deg: 126.9
+  bench:
+    from_front: 0.196
+    target: true
+- name: banana
+  ycb: 011_banana
+  surface: washer@laundry room
+  offset:
+  - -0.185
+  - -0.09
+  yaw_deg: -175.1
+  bench:
+    from_front: 0.21
+    target: true
+- name: purple cup
+  ycb: 065-f_cups
+  surface: washer@laundry room
+  offset:
+  - 0.03
+  - -0.115
+  yaw_deg: 47.9
+  bench:
+    from_front: 0.185
+    target: true
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: chest@bedroom
+  offset:
+  - 0.213
+  - -0.021
+  yaw_deg: -134.7
+  bench:
+    from_front: 0.189
+    target: true
+- name: pear
+  ycb: 016_pear
+  surface: chest@bedroom
+  offset:
+  - -0.272
+  - -0.014
+  yaw_deg: -53.5
+  bench:
+    from_front: 0.196
+    target: true
+- name: mustard bottle
+  ycb: 006_mustard_bottle
+  surface: stool@bedroom
+  offset:
+  - -0.191
+  - -0.118
+  yaw_deg: -124.4
+  bench:
+    from_front: 0.082
+    target: true
+- name: pudding box
+  ycb: 008_pudding_box
+  surface: stool@bedroom
+  offset:
+  - 0.113
+  - 0.006
+  yaw_deg: 19.8
+  bench:
+    from_front: 0.206
+    target: true
+- name: spam can
+  ycb: 010_potted_meat_can
+  surface: shelf@restroom
+  offset:
+  - 0.231
+  - -0.013
+  yaw_deg: 157.9
+  bench:
+    from_front: 0.087
+    target: true

@@ -27,6 +27,23 @@ DROP = {'vlms'}                 # vla_drawer_open (/drawer/open) is served in th
 HOST = '127.0.0.1'
 
 
+# Korean / Vietnamese names of the house's places (ENV `aliases`): what a user says, ko / vi. A spot's own
+# `aliases` (house_scene) come first. No two places may share one (PUT /skill-configs/ENV refuses clashes).
+SPOKEN = {
+    'sofa@living room': ['소파', 'ghế sofa'],
+    'test table@living room': ['거실 테이블', 'bàn phòng khách'],
+    'desk@study room': ['책상', 'bàn làm việc'],
+    'drawer@kitchen': ['부엌 서랍', 'ngăn kéo bếp'],
+    'counter@kitchen': ['조리대', 'bàn bếp'],
+    'shelf@kitchen': ['부엌 선반', 'kệ bếp'],
+    'dining table@kitchen': ['식탁', 'bàn ăn'],
+    'washer@laundry room': ['세탁기', 'máy giặt'],
+    'chest@bedroom': ['서랍장', 'tủ ngăn kéo'],
+    'stool@bedroom': ['스툴', 'ghế đẩu'],
+    'shelf@restroom': ['화장실 선반', 'kệ nhà tắm'],
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--standoff', type=float, default=0.55)
@@ -81,6 +98,8 @@ def main():
         for k in ('handle', 'handle_height', 'aliases'):
             if k in sp:
                 e[k] = sp[k]
+        if key in SPOKEN:
+            e['aliases'] = list(dict.fromkeys(list(e.get('aliases') or []) + SPOKEN[key]))
         env[key] = e
     # places saved from the dashboard's Map tab ("source": "map") survive a regeneration
     if os.path.exists(f'{dst}/skill_configs_override.json'):

@@ -26,7 +26,7 @@ and the kitchen (= drawio (420, -386)); the robot starts there.
                                            (entrance below the corridor)
 
 Furniture looks follow the owner's photos (sim/assets/real_home/photos, 2026-10-06) and the robot's own head /
-wrist images (sim/assets/real_home/robot_cams). The robot body `base_footprint` is a mocap body: house_bridge.py
+wrist images (sim/assets/real_home/robot_cams). The robot body `base_footprint` rides on planar joints (x, y, yaw): house_bridge.py
 drives the base kinematically (x, y, yaw) like the real nav stack; everything above it (lift, head, arm,
 gripper) is simulated as in the drawer scenes. Small objects are real scanned meshes (YCB, sim/assets/ycb) so
 the open-vocabulary detector used by kcare's `find` sees realistic things.
@@ -74,6 +74,10 @@ CHROME = (0.78, 0.79, 0.80, 1)
 
 # ── rooms and walls (docs/draws/floor.drawio) ─────────────────────────────────
 BOUNDS = (-4.5, 5.5, -4.0, 4.0)
+# test table: HOUSE_TEST_TABLE="L,W,H" (m). Width from the objects in the owner's photos (~1.27 mm/px -> ~0.5 m);
+# the height cannot be read from a top-down photo: 0.55 m until measured.
+TEST_TABLE = tuple(float(v) for v in os.environ.get('HOUSE_TEST_TABLE', '0.5,0.5,0.55').split(','))
+TEST_TABLE_AT = (0.4, 2.0)
 ROOMS = {'bedroom': (-4.5, -1.8, -0.58, 4.0), 'living room': (-1.8, 1.9, 0.6, 4.0), 'study room': (1.9, 5.5, 0.64, 4.0),
          'hall': (-1.8, 5.5, -0.58, 0.62), 'kitchen': (-1.76, 1.96, -4.0, -0.58), 'warehouse': (-3.0, -1.76, -2.32, -0.58),
          'laundry room': (-3.0, -1.76, -4.0, -2.32), 'dress room': (-4.5, -3.0, -4.0, -0.58),
@@ -343,6 +347,15 @@ def _shelf(id_, pos, yaw, wire=False):
     return body(id_, pos, yaw, g, 'wire shelf' if wire else 'storage shelf'), None
 
 
+def _clothes_rack(id_, pos, yaw):
+    """Free-standing clothes rack: two posts on feet and a top rail at 1.6 m along local x (shirts hang from it)."""
+    c = CHROME
+    g = [cyl(f'{id_}_post{k}', (sx * 0.5, 0, 0.82), 0.012, 1.64, rgba=c) for k, sx in enumerate((1, -1))]
+    g += [box(f'{id_}_foot{k}', (sx * 0.5, 0, 0.015), (0.03, 0.22, 0.015), rgba=c) for k, sx in enumerate((1, -1))]
+    g += [cyl(f'{id_}_rail', (0, 0, 1.62), 0.012, 1.02, rgba=c).replace('/>', ' euler="0 1.5708 0"/>')]
+    return body(id_, pos, yaw, g, 'clothes rack'), dict(front=-math.pi / 2, depth=0.4, width=1.0, height=1.1)
+
+
 # Pieces a scene can add (and the dashboard offers). make(id, pos, yaw) -> (xml, surface or None);
 # surface: front = the direction its front faces relative to yaw, depth / width / height [m].
 CATALOG = {
@@ -358,6 +371,7 @@ CATALOG = {
     'office chair':  dict(label='office chair', make=lambda i, p, a: (office_chair(i, p, a), None)),
     'wire shelf':    dict(label='wire shelf 5 tiers', make=lambda i, p, a: _shelf(i, p, a, wire=True)),
     'storage shelf': dict(label='white storage shelf', make=_shelf),
+    'clothes rack':  dict(label='clothes rack (rail 1.6 m)', make=_clothes_rack),
 }
 
 
@@ -407,12 +421,20 @@ def furniture(cab_style=None, site=None):
         cap('sofa_arm_top', (0.86, -0.38, 0.62), (0.86, 0.38, 0.62), 0.09, sofa),
         box('sofa_pillow', (-0.75, -0.17, 0.62), (0.17, 0.07, 0.15), rgba=(0.97, 0.96, 0.93, 1)).replace('/>', ' euler="0.25 0 0.2"/>'),
         box('sofa_seam', (-0.09, 0.3, 0.42), (0.004, 0.09, 0.05), rgba=(0.8, 0.79, 0.75, 1), extra=VIS)]))
+    # the sofa seat as a place to put things down on (the dress-room bag "to the sofa", scenario sheet #8)
+    spot('sofa', 'living room', (-1.22, 2.98), 0.0, 0.62, 1.5, 0.44, body='sofa')
     # oval two-tier side table: white top and lower tray, chrome legs, nothing on it; long axis away from the wall
     F.append(body('side_table', (-1.38, 1.85, 0), math.pi / 2, [
         stadium('stab_top', (0, 0, 0.6), 0.3, 0.19, 0.03, rgba=OFFWHITE, axis='y'),
         stadium('stab_tray', (0, 0, 0.16), 0.24, 0.16, 0.02, rgba=OFFWHITE, axis='y')] +
         [cyl(f'stab_leg{k}', (sx * 0.13, sy * 0.22, 0.3), 0.007, 0.6, rgba=CHROME)
          for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))]))
+    # the robot's white test table (the owner's top-down photos: ~0.5 m square, white top on white legs, light wood
+    # floor around it) in the open middle of the living room, approached from the hall side (south)
+    tl, tw, th = TEST_TABLE
+    F.append(table('test_table', (TEST_TABLE_AT[0], TEST_TABLE_AT[1], 0), 0.0, tl, tw, th, top_rgba=WHITE, leg=WHITE,
+                   leg_r=0.015, type_='test table'))
+    spot('test table', 'living room', TEST_TABLE_AT, -math.pi / 2, tw, tl, th + 0.003, body='test_table')
     F.append(body('tv_stand', (1.67, 2.6, 0), -math.pi / 2, [
         box('tv_stand_box', (0, 0, 0.2), (0.8, 0.18, 0.2), rgba=OFFWHITE),
         box('tv_stand_gap', (0, -0.181, 0.2), (0.78, 0.001, 0.005), rgba=(0.8, 0.8, 0.8, 1), extra=VIS),
@@ -703,6 +725,22 @@ def scene_objects():
     return [dict(name=n, ycb=y, surface=sp, offset=list(off), yaw_deg=a) for n, y, sp, off, a in OBJECTS]
 
 
+def _obj_props(ycb):
+    try:
+        return json.load(open(f'{SIM}/assets/ycb/{ycb}/props.json'))
+    except (OSError, ValueError):
+        return {}
+
+
+def _obj_rgba(ycb):
+    """Material rgba from assets/ycb/<id>/props.json (make_real_objects.py: transparent bottles), else nothing."""
+    try:
+        rgba = json.load(open(f'{SIM}/assets/ycb/{ycb}/props.json')).get('rgba')
+    except (OSError, ValueError):
+        return ''
+    return f' rgba="{" ".join(str(v) for v in rgba)}"' if rgba else ''
+
+
 def objects_xml(spots):
     assets, bodies, placed = [], [], {}
     for ob in scene_objects():
@@ -733,11 +771,14 @@ def objects_xml(spots):
         tag = re.sub(r'[^a-z0-9]', '_', name)
         assets.append(f'<mesh name="m_{tag}" file="{YCB}/{ycb}/google_16k/textured.obj"/>'
                       f'<texture name="t_{tag}" type="2d" file="{YCB}/{ycb}/google_16k/texture_map.png"/>'
-                      f'<material name="mt_{tag}" texture="t_{tag}"/>')
-        bodies.append(f'<body name="obj_{tag}" pos="{p[0]:.4f} {p[1]:.4f} {z:.4f}" quat="{quat}">'
-                      f'<freejoint name="obj_{tag}_free"/>'
+                      f'<material name="mt_{tag}" texture="t_{tag}"{_obj_rgba(ycb)}/>')
+        static = ob.get('static', _obj_props(ycb).get('static', False))      # hanging clothes, the fallen person
+        bodies.append(f'<body name="{"prop" if static else "obj"}_{tag}" pos="{p[0]:.4f} {p[1]:.4f} {z:.4f}" quat="{quat}">'
+                      + ('' if static else f'<freejoint name="obj_{tag}_free"/>') +
                       f'<geom name="obj_{tag}" type="mesh" mesh="m_{tag}" material="mt_{tag}" density="400" '
                       f'friction="1.0 0.01 0.001" condim="4"/></body>')
+        if static:
+            continue                                                 # scenery: not an object the robot handles
         placed[name] = dict(ycb=ycb, on=on, body=f'obj_{tag}', pos=[round(float(v), 3) for v in (p[0], p[1], z)],
                             spec={k: ob[k] for k in ('surface', 'offset', 'yaw_deg') if k in ob} if on else None)
         if on and 'surface' not in placed[name]['spec']:
@@ -745,10 +786,29 @@ def objects_xml(spots):
     return ''.join(assets), ''.join(bodies), placed
 
 
+BASE_JOINTS = ('base_x', 'base_y', 'base_yaw')
+
+
+def grasp_welds(placed):
+    """One inactive weld per object to the gripper: house_bridge.py's grasp assist switches it on while both finger
+    tips squeeze the object and off when the gripper opens (MuJoCo's soft finger contacts alone let a held object
+    slide out as soon as the robot moves; the real rubber-tipped gripper does not)."""
+    if not placed:
+        return ''
+    return '<equality>' + ''.join(f'<weld name="grasp_{v["body"][4:]}" body1="gripper_body_link" body2="{v["body"]}" '
+                                  f'active="false" solref="0.004 1" solimp="0.99 0.999 0.001"/>' for v in placed.values()) + '</equality>'
+
+
 def robot_mobile_xml():
-    """kaair_slamtec.xml with base_footprint as a mocap body (the base is driven kinematically)."""
+    """kaair_slamtec.xml with base_footprint on planar joints (x, y, yaw). house_bridge.py drives them kinematically,
+    writing position AND velocity every step: a mocap base only had positions, so the contact solver saw the
+    fingers as standing still while they jumped, and anything held slid out as soon as the base moved."""
     src = open(f'{SIM}/mjcf/kaair_slamtec.xml').read()
-    out = src.replace('<body name="base_footprint" gravcomp="1">', '<body name="base_footprint" mocap="true">', 1)
+    out = src.replace('<body name="base_footprint" gravcomp="1">',
+                      '<body name="base_footprint" gravcomp="1">'
+                      '<joint name="base_x" type="slide" axis="1 0 0" armature="100000"/>'
+                      '<joint name="base_y" type="slide" axis="0 1 0" armature="100000"/>'
+                      '<joint name="base_yaw" type="hinge" axis="0 0 1" armature="100000"/>', 1)
     assert out != src, 'base_footprint body not found'
     out = re.sub(r'<keyframe>.*?</keyframe>', '', out, flags=re.S)
     open(f'{SIM}/mjcf/kaair_slamtec_mobile.xml', 'w').write(out)
@@ -810,6 +870,7 @@ def house_xml(robot_include='kaair_slamtec_mobile.xml', frame=None, cab_style=No
     <geom name="floor" type="plane" size="0 0 0.05" rgba="0.5 0.5 0.5 1" group="3"/>
     {body}
   </worldbody>
+  {grasp_welds(placed)}
 </mujoco>'''
     return xml, spots, placed
 
@@ -854,7 +915,12 @@ def heightmap(res=0.04, top=3.0):
     (walls, ceiling and the robot left out), one vertical ray per cell -> out/house/heightmap.png + .json."""
     import cv2, mujoco
     m = mujoco.MjModel.from_xml_path(f'{SIM}/mjcf/house.xml'); d = mujoco.MjData(m)
-    d.mocap_pos[:] = [50.0, 50.0, 0.0]                      # the robot out of the way
+    if m.nmocap:
+        d.mocap_pos[:] = [50.0, 50.0, 0.0]                  # the robot out of the way
+    for jn in BASE_JOINTS[:2]:
+        j = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)
+        if j >= 0:
+            d.qpos[m.jnt_qposadr[j]] = 50.0
     mujoco.mj_forward(m, d)
     fr = map_frame(); x0, y0 = fr['origin']
     W, H = int(round(fr['width'] * fr['resolution'] / res)), int(round(fr['height'] * fr['resolution'] / res))

@@ -40,10 +40,16 @@ def features():
 
 def worker(wid, n_target, max_attempts, seed, shard_root, gpu_ids, preview_n, rand_cfg, task_cfg, use_cam_model, q):
     os.environ['MUJOCO_GL'] = 'egl'
+    for v in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):   # many workers side by side
+        os.environ.setdefault(v, '2')
     os.environ['MUJOCO_EGL_DEVICE_ID'] = str(gpu_ids[wid % len(gpu_ids)])
     sys.path.insert(0, os.path.join(SIM, 'scripts'))
     import cv2, imageio, mujoco, numpy as np, yaml
-    import check_sim as cs, drawer_ready as dr, expert_open_drawer as ex, randomize
+    cv2.setNumThreads(2)
+    import importlib
+    import check_sim as cs, drawer_ready as dr, randomize
+    task0 = yaml.safe_load(open(task_cfg))
+    ex = importlib.import_module(f"expert_{task0.get('expert', 'open_drawer')}")   # task['expert'] picks the expert
     from lerobot.datasets.lerobot_dataset import LeRobotDataset
 
     cfg = yaml.safe_load(open(f'{SIM}/config/mjcf.yaml'))
@@ -66,6 +72,11 @@ def worker(wid, n_target, max_attempts, seed, shard_root, gpu_ids, preview_n, ra
         attempts += 1
         rng = np.random.default_rng(ep_seed)
         rand = randomize.sample(rng, rcfg)
+        if task.get('expert') == 'close_drawer':          # starts open; same drawer targets, "close ..." phrasings
+            rand['drawer0'] = float(rng.uniform(*task.get('drawer0_range', (0.12, 0.25))))
+            rand['prompt'] = rand.get('prompt', 'open drawer').replace('open', 'close')
+        elif task.get('retry_prob'):                       # open drawer: some episodes miss the bar first and retry
+            rand['retry'] = bool(rng.random() < float(task['retry_prob']))
         if cams is not None:
             for c in cams.values():
                 c.episode_jitter(rng)                   # this episode's AE/AWB/JPEG state
@@ -94,8 +105,9 @@ def worker(wid, n_target, max_attempts, seed, shard_root, gpu_ids, preview_n, ra
                 preview.append(np.concatenate([cv2.resize(head, (424, 240)), cv2.resize(wrist, (424, 240))], 1))
 
         t0 = time.time()
+        kw = {'retry': rand['retry']} if 'retry' in rand else {}
         rec = ex.run_episode(m, d, task, cfg, mode, render=on_step, log=lambda *a: None,
-                             q_extra=rand['q_extra'], drawer0=rand['drawer0'], target=rand.get('target'))
+                             q_extra=rand['q_extra'], drawer0=rand['drawer0'], target=rand.get('target'), **kw)
         r_head.close(); r_wrist.close()
         opened = float(rec['drawer'][-1] - rand['drawer0'])
         if rec['success']:

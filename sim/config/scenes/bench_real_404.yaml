@@ -1,0 +1,223 @@
+bench:
+  seed: 404
+objects:
+- name: coke can
+  ycb: r01_coke_can
+  surface: desk@study room
+  offset:
+  - 0.011
+  - -0.232
+  yaw_deg: -131.8
+  bench:
+    from_front: 0.068
+    target: true
+- name: black bottle
+  ycb: r04_gnc_bottle
+  surface: desk@study room
+  offset:
+  - -0.287
+  - -0.162
+  yaw_deg: -147.4
+  bench:
+    from_front: 0.138
+    target: true
+- name: banana
+  ycb: 011_banana
+  surface: desk@study room
+  offset:
+  - 0.234
+  - -0.174
+  yaw_deg: -82.0
+  bench:
+    from_front: 0.126
+    target: true
+- name: yellow cup
+  ycb: r11_yellow_cup
+  surface: desk@study room
+  offset:
+  - -0.091
+  - -0.173
+  yaw_deg: -29.3
+  bench:
+    from_front: 0.127
+    target: true
+- name: grey cup
+  ycb: r07_grey_cup
+  surface: drawer@kitchen
+  offset:
+  - 0.135
+  - -0.124
+  yaw_deg: -174.4
+  bench:
+    from_front: 0.126
+    target: true
+- name: green can
+  ycb: r02_cider_can
+  surface: counter@kitchen
+  offset:
+  - 0.101
+  - -0.229
+  yaw_deg: -132.0
+  bench:
+    from_front: 0.091
+    target: true
+- name: brown towel
+  ycb: r10_brown_towel
+  surface: counter@kitchen
+  offset:
+  - 0.279
+  - -0.187
+  yaw_deg: 176.0
+  bench:
+    from_front: 0.133
+    target: true
+- name: water bottle
+  ycb: r09_water_bottle
+  surface: counter@kitchen
+  offset:
+  - -0.186
+  - -0.179
+  yaw_deg: -81.4
+  bench:
+    from_front: 0.141
+    target: true
+- name: beer can
+  ycb: r15_cass_can
+  surface: counter@kitchen
+  offset:
+  - -0.043
+  - -0.176
+  yaw_deg: -40.1
+  bench:
+    from_front: 0.144
+    target: true
+- name: coffee cup
+  ycb: r17_barista_cup
+  surface: shelf@kitchen
+  offset:
+  - 0.114
+  - -0.149
+  yaw_deg: -1.7
+  bench:
+    from_front: 0.111
+    target: true
+- name: orange
+  ycb: 017_orange
+  surface: dining table@kitchen
+  offset:
+  - 0.161
+  - -0.601
+  yaw_deg: 32.1
+  bench:
+    from_front: 0.094
+    target: true
+- name: green jar
+  ycb: r03_green_jar
+  surface: dining table@kitchen
+  offset:
+  - -0.053
+  - -0.591
+  yaw_deg: -85.8
+  bench:
+    from_front: 0.104
+    target: true
+- name: orange juice
+  ycb: r08_juice_bottle
+  surface: dining table@kitchen
+  offset:
+  - -0.256
+  - -0.631
+  yaw_deg: 119.8
+  bench:
+    from_front: 0.064
+    target: true
+- name: green snack box
+  ycb: r20_pine_box
+  surface: washer@laundry room
+  offset:
+  - -0.021
+  - -0.15
+  yaw_deg: -35.4
+  bench:
+    from_front: 0.15
+    target: true
+- name: coffee can
+  ycb: r16_top_coffee
+  surface: washer@laundry room
+  offset:
+  - 0.175
+  - -0.216
+  yaw_deg: -38.7
+  bench:
+    from_front: 0.084
+    target: true
+- name: phone
+  ycb: r13_phone
+  surface: chest@bedroom
+  offset:
+  - 0.27
+  - -0.089
+  yaw_deg: 1.1
+  bench:
+    from_front: 0.121
+    target: true
+- name: black cap
+  ycb: r21_black_cap
+  surface: stool@bedroom
+  offset:
+  - 0.089
+  - -0.045
+  yaw_deg: 80.2
+  bench:
+    from_front: 0.155
+    target: true
+- name: apple
+  ycb: 013_apple
+  surface: shelf@restroom
+  offset:
+  - -0.205
+  - -0.014
+  yaw_deg: 49.8
+  bench:
+    from_front: 0.086
+    target: true
+- name: striped ball
+  ycb: r22_striped_ball
+  surface: shelf@restroom
+  offset:
+  - 0.116
+  - -0.0
+  yaw_deg: 75.8
+  bench:
+    from_front: 0.1
+    target: true
+- name: small water bottle
+  ycb: r19_small_water
+  surface: test table@living room
+  offset:
+  - -0.065
+  - -0.161
+  yaw_deg: 57.0
+  bench:
+    from_front: 0.089
+    target: true
+- name: milk bottle
+  ycb: r18_milk_bottle
+  surface: test table@living room
+  offset:
+  - -0.191
+  - -0.106
+  yaw_deg: -125.3
+  bench:
+    from_front: 0.144
+    target: true
+- name: beige towel
+  ycb: r06_beige_towel
+  surface: test table@living room
+  offset:
+  - 0.147
+  - -0.1
+  yaw_deg: 75.3
+  bench:
+    from_front: 0.15
+    target: true

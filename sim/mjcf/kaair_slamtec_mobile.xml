@@ -71,7 +71,7 @@
   </asset>
 
   <worldbody>
-    <body name="base_footprint" mocap="true">
+    <body name="base_footprint" gravcomp="1"><joint name="base_x" type="slide" axis="1 0 0" armature="100000"/><joint name="base_y" type="slide" axis="0 1 0" armature="100000"/><joint name="base_yaw" type="hinge" axis="0 0 1" armature="100000"/>
       <body name="slamtec_base_link" pos="0 0 0.085" gravcomp="1">
         <inertial pos="0.0106554 8.39957e-05 0.145712" quat="0.458048 0.537078 0.534444 0.464875" mass="30" diaginertia="0.858522 0.835247 0.802535"/>
         <geom pos="0 0 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.8 0.8 0.8 1" density="0" mesh="slamtec_base_link_0"/>

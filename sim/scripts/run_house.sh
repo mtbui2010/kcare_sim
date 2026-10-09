@@ -29,7 +29,7 @@ start_kcare() {
     # the real robot's code, read-only from the dev PC (host: ~/.local/bin/kcare_remote_mount.sh, cron)
     [ -d /kcare_mnt/remote_dir/kcare_robot ] || { echo "kcare code not mounted (/kcare_mnt/remote_dir): is the tunnel on .11 up?"; return 1; }
     cd /sim
-    PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 nohup $KCARE_PY -m uvicorn kcare_sim_app:app --app-dir /sim/scripts \
+    OLLAMA_NUM_CTX=8192 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 nohup $KCARE_PY -m uvicorn kcare_sim_app:app --app-dir /sim/scripts \
         --host 0.0.0.0 --port $PORT > $LOG/kcare.log 2>&1 &
     for i in $(seq 60); do curl -s -m 1 localhost:$PORT/skills >/dev/null && break; sleep 1; done
     curl -s -m 2 localhost:$PORT/skills >/dev/null || { echo "kcare failed:"; tail -30 $LOG/kcare.log; return 1; }
@@ -57,7 +57,8 @@ start_vla() {
     grep -q "/drawer/open ready" $LOG/vla_drawer.log && echo "vla node ready" || { echo "vla node failed:"; tail -15 $LOG/vla_drawer.log; }
 }
 stop_vla()   { stop_pat "python3 scripts/[v]la_drawer_node.py" && echo "vla node stopped"; }
-stop_sim()   { stop_pat "python3 scripts/[h]ouse_bridge.py" && echo "sim stopped"; }
+# only this tree's bridge: instances (make_inst.sh) run the same command line from /sim/instN
+stop_sim()   { for p in $(pgrep -f "python3 scripts/house_bridge.py"); do [ "$(readlink /proc/$p/cwd)" = "$PWD" ] && kill $p; done; sleep 2; echo "sim stopped"; }
 stop_kcare() { stop_pat "[u]vicorn.*--port $PORT" && echo "kcare stopped"; }
 
 case "$1" in

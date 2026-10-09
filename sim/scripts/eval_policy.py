@@ -85,7 +85,8 @@ def run(m, d, task, cfg, rand, policy, pre, post, timeout, success_m, frames=Non
             for _ in range(n_sub):
                 mujoco.mj_step(m, d)
             opened = float(d.qpos[adr] - rand['drawer0'])
-            if t_success is None and opened > success_m:
+            done = d.qpos[adr] < 0.02 if task.get('expert') == 'close_drawer' else opened > success_m   # close: shut
+            if t_success is None and done:
                 t_success = (step + 1) / ex.HZ
             if t_success is not None and (step + 1) / ex.HZ > t_success + 1.0:   # show 1 s after success
                 break
@@ -139,6 +140,9 @@ def main():
             seed = a.seed0 + k
             ep_rng = np.random.default_rng(seed)
             rand = randomize.sample(ep_rng, rcfg)
+            if task.get('expert') == 'close_drawer':      # as gen_dataset: starts open, "close ..." phrasings
+                rand['drawer0'] = float(ep_rng.uniform(*task.get('drawer0_range', (0.12, 0.25))))
+                rand['prompt'] = rand.get('prompt', 'open drawer').replace('open', 'close')
             if cams is not None:
                 for c in cams.values():
                     c.episode_jitter(ep_rng)

@@ -1,0 +1,243 @@
+bench:
+  seed: 110
+objects:
+- name: orange
+  ycb: 017_orange
+  surface: desk@study room
+  offset:
+  - -0.053
+  - 0.069
+  yaw_deg: 68.0
+  bench:
+    from_front: 0.369
+    target: true
+- name: orange cup
+  ycb: 065-a_cups
+  surface: desk@study room
+  offset:
+  - -0.05
+  - -0.232
+  yaw_deg: 113.6
+  bench:
+    from_front: 0.068
+    target: true
+- name: tuna can
+  ycb: 007_tuna_fish_can
+  surface: desk@study room
+  offset:
+  - -0.21
+  - -0.13
+  yaw_deg: -27.0
+  bench:
+    from_front: 0.17
+    target: true
+- name: pear
+  ycb: 016_pear
+  surface: drawer@kitchen
+  offset:
+  - 0.13
+  - -0.084
+  yaw_deg: 177.7
+  bench:
+    from_front: 0.166
+    target: true
+- name: strawberry
+  ycb: 012_strawberry
+  surface: drawer@kitchen
+  offset:
+  - 0.158
+  - 0.179
+  yaw_deg: 111.9
+  bench:
+    from_front: 0.429
+    target: true
+- name: screwdriver
+  ycb: 043_phillips_screwdriver
+  surface: counter@kitchen
+  offset:
+  - 0.255
+  - -0.073
+  yaw_deg: -105.0
+  bench:
+    from_front: 0.247
+    target: true
+- name: spray bottle
+  ycb: 022_windex_bottle
+  surface: counter@kitchen
+  offset:
+  - -0.297
+  - -0.152
+  yaw_deg: -133.6
+  bench:
+    from_front: 0.168
+    target: true
+- name: pitcher
+  ycb: 019_pitcher_base
+  surface: counter@kitchen
+  offset:
+  - -0.001
+  - 0.029
+  yaw_deg: 3.4
+  bench:
+    from_front: 0.349
+    target: false
+- name: jello box
+  ycb: 009_gelatin_box
+  surface: counter@kitchen
+  offset:
+  - 0.046
+  - -0.18
+  yaw_deg: -58.1
+  bench:
+    from_front: 0.14
+    target: true
+- name: banana
+  ycb: 011_banana
+  surface: shelf@kitchen
+  offset:
+  - 0.175
+  - -0.008
+  yaw_deg: -97.3
+  bench:
+    from_front: 0.252
+    target: true
+- name: bowl
+  ycb: 024_bowl
+  surface: shelf@kitchen
+  offset:
+  - -0.121
+  - 0.003
+  yaw_deg: 87.2
+  bench:
+    from_front: 0.263
+    target: true
+- name: soccer ball
+  ycb: 053_mini_soccer_ball
+  surface: dining table@kitchen
+  offset:
+  - 0.092
+  - -0.496
+  yaw_deg: 160.9
+  bench:
+    from_front: 0.199
+    target: true
+- name: blue ball
+  ycb: 057_racquetball
+  surface: dining table@kitchen
+  offset:
+  - -0.189
+  - -0.124
+  yaw_deg: -166.9
+  bench:
+    from_front: 0.571
+    target: true
+- name: softball
+  ycb: 054_softball
+  surface: dining table@kitchen
+  offset:
+  - 0.232
+  - -0.077
+  yaw_deg: 21.3
+  bench:
+    from_front: 0.618
+    target: true
+- name: baseball
+  ycb: 055_baseball
+  surface: dining table@kitchen
+  offset:
+  - -0.244
+  - -0.515
+  yaw_deg: -102.9
+  bench:
+    from_front: 0.18
+    target: true
+- name: bleach bottle
+  ycb: 021_bleach_cleanser
+  surface: washer@laundry room
+  offset:
+  - 0.229
+  - -0.194
+  yaw_deg: 84.8
+  bench:
+    from_front: 0.106
+    target: true
+- name: foam brick
+  ycb: 061_foam_brick
+  surface: washer@laundry room
+  offset:
+  - -0.14
+  - -0.195
+  yaw_deg: 72.7
+  bench:
+    from_front: 0.105
+    target: true
+- name: cracker box
+  ycb: 003_cracker_box
+  surface: washer@laundry room
+  offset:
+  - 0.1
+  - -0.068
+  yaw_deg: -58.1
+  bench:
+    from_front: 0.232
+    target: true
+- name: fork
+  ycb: 030_fork
+  surface: chest@bedroom
+  offset:
+  - -0.216
+  - 0.039
+  yaw_deg: 83.1
+  bench:
+    from_front: 0.249
+    target: true
+- name: apple
+  ycb: 013_apple
+  surface: chest@bedroom
+  offset:
+  - 0.145
+  - -0.036
+  yaw_deg: 115.9
+  bench:
+    from_front: 0.174
+    target: true
+- name: purple cup
+  ycb: 065-f_cups
+  surface: chest@bedroom
+  offset:
+  - -0.04
+  - 0.005
+  yaw_deg: 17.3
+  bench:
+    from_front: 0.215
+    target: true
+- name: plate
+  ycb: 029_plate
+  surface: stool@bedroom
+  offset:
+  - -0.032
+  - 0.006
+  yaw_deg: 66.7
+  bench:
+    from_front: 0.206
+    target: false
+- name: spam can
+  ycb: 010_potted_meat_can
+  surface: shelf@restroom
+  offset:
+  - -0.135
+  - -0.016
+  yaw_deg: 11.2
+  bench:
+    from_front: 0.084
+    target: true
+- name: green cup
+  ycb: 065-c_cups
+  surface: shelf@restroom
+  offset:
+  - 0.128
+  - 0.026
+  yaw_deg: 94.6
+  bench:
+    from_front: 0.126
+    target: true

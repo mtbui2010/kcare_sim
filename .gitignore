@@ -36,3 +36,12 @@ sim/out/
 
 # scene editor runtime state
 sim/config/scenes/_*
+# textures made from retailer product photos: not for the public repo
+sim/assets/real_home/objects/
+# parallel sim instances (make_inst.sh) and scratch copies
+sim/inst*/
+sim/MUJOCO_LOG.TXT
+sim/scripts/*.new
+sim/scripts/*.prefault
+sim/scripts/*.bak_*
+sim/scripts/*.next

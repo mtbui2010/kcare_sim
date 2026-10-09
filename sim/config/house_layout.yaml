@@ -179,6 +179,24 @@ walls:
   - - 3.68
     - 4.58
 spots:
+  sofa@living room:
+    centre:
+    - -1.22
+    - 2.98
+    front_yaw_deg: 0.0
+    depth: 0.62
+    width: 1.5
+    height: 0.44
+    default_mode: left
+  test table@living room:
+    centre:
+    - 0.4
+    - 2.0
+    front_yaw_deg: -90.0
+    depth: 0.5
+    width: 0.5
+    height: 0.553
+    default_mode: left
   desk@study room:
     centre:
     - 2.25
@@ -555,6 +573,21 @@ furniture:
       - 0.38
       - 0.68
       yaw_deg: 90.0
+  test_table:
+    pos:
+    - 0.4
+    - 2.0
+    yaw_deg: 0.0
+    type: test table
+    editable: true
+    footprint:
+      centre:
+      - 0.4
+      - 2.0
+      size:
+      - 0.5
+      - 0.5
+      yaw_deg: 0.0
   tv_stand:
     pos:
     - 1.67
@@ -1004,14 +1037,25 @@ catalog:
     office chair: office chair
     wire shelf: wire shelf 5 tiers
     storage shelf: white storage shelf
+    clothes rack: clothes rack (rail 1.6 m)
   objects:
+  - 002_master_chef_can
   - 003_cracker_box
   - 004_sugar_box
   - 005_tomato_soup_can
   - 006_mustard_bottle
+  - 007_tuna_fish_can
+  - 008_pudding_box
+  - 009_gelatin_box
+  - 010_potted_meat_can
   - 011_banana
+  - 012_strawberry
   - 013_apple
+  - 014_lemon
+  - 015_peach
+  - 016_pear
   - 017_orange
+  - 018_plum
   - 019_pitcher_base
   - 021_bleach_cleanser
   - 022_windex_bottle
@@ -1019,7 +1063,58 @@ catalog:
   - 025_mug
   - 026_sponge
   - 029_plate
+  - 030_fork
+  - 031_spoon
+  - 040_large_marker
+  - 043_phillips_screwdriver
+  - 053_mini_soccer_ball
+  - 054_softball
+  - 055_baseball
   - 056_tennis_ball
+  - 057_racquetball
+  - 061_foam_brick
   - 065-a_cups
+  - 065-c_cups
+  - 065-f_cups
+  - 077_rubiks_cube
+  - d01_shin_ramyun
+  - d02_ansung
+  - d03_chapagetti
+  - d04_tumbler
+  - d05_wine_glass
+  - d06_pot
+  - d07_beige_bag
+  - d08_blue_bag
+  - d09_black_bag
+  - d10_shoe_left
+  - d11_shoe_right
+  - d12_white_shirt
+  - d13_black_shirt
+  - d14_check_shirt
+  - d15_person
+  - r01_coke_can
+  - r02_cider_can
+  - r03_green_jar
+  - r04_gnc_bottle
+  - r05_snack_pouch
+  - r06_beige_towel
+  - r07_grey_cup
+  - r08_juice_bottle
+  - r09_water_bottle
+  - r10_brown_towel
+  - r11_yellow_cup
+  - r12_ace_box
+  - r13_phone
+  - r14_remote
+  - r15_cass_can
+  - r16_top_coffee
+  - r17_barista_cup
+  - r18_milk_bottle
+  - r19_small_water
+  - r20_pine_box
+  - r21_black_cap
+  - r22_striped_ball
+  - r23_wood_spoon
+  - r24_wood_fork
 source: docs/draws/floor.drawio (owner, 2026-10-07); looks from the owner photos +
   home_tour.mp4

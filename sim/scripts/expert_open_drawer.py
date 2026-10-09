@@ -32,7 +32,8 @@ ARM = [f'joint{i}' for i in range(1, 8)]
 
 EXPERT = dict(pre_d=0.08, grasp_depth=0.02, pull=0.25, retreat=0.08,
               pre_width=0.04, closed_width=0.0, finger_axis_z=1,
-              durations=dict(hold=0.5, pregrasp=2.5, approach=1.5, grasp=1.5, pull=3.0, release=1.0, retreat=1.2))
+              durations=dict(hold=0.5, pregrasp=2.5, approach=1.5, grasp=1.5, pull=3.0, release=1.0, retreat=1.2,
+                             reaim=1.5), miss_dz=0.035)
 # grasp / release command the gripper as a step, like kcare's grip::close/open;
 # the Koras closes at ~0.05 m/s, so the phase must outlast the travel. A ramped
 # command let the pull start before the fingers had reached the bar.
@@ -62,7 +63,7 @@ def smooth(s):  # 0..1 -> 0..1, zero velocity at both ends
     return s * s * (3 - 2 * s)
 
 
-def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=None, drawer0=0.0, target=None):
+def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=None, drawer0=0.0, target=None, retry=False):
     """q_extra: joint offsets on top of the ready pose (e.g. head jitter);
     drawer0: initial opening of the target drawer [m];
     target: drawer index to open (0 = bottom ... top); None = the style's default."""
@@ -104,9 +105,20 @@ def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=No
     retreat_pos = pull_pos - d_app * EXPERT['retreat']
     open_w = task['ready_pose']['gripper']
     # (phase, TCP from, TCP to, unused, gripper width at the end of the phase)
+    # retry demo: the first grasp closes MISS_DZ above the bar, the pull does not move the drawer, the gripper
+    # opens, backs off to the pre-grasp point and does it again properly — so the policy learns to try again
+    miss = np.array([0, 0, EXPERT.get('miss_dz', 0.035)])
+    retry_phases = [
+        ('pregrasp', T0[:3, 3], pre_pos + miss, 1.0, EXPERT['pre_width']),
+        ('approach', pre_pos + miss, grasp_pos + miss, 1.0, EXPERT['pre_width']),
+        ('grasp', grasp_pos + miss, grasp_pos + miss, 1.0, EXPERT['closed_width']),
+        ('pull', grasp_pos + miss, grasp_pos + miss - d_app * 0.08, 1.0, EXPERT['closed_width']),
+        ('release', grasp_pos + miss - d_app * 0.08, grasp_pos + miss - d_app * 0.08, 1.0, EXPERT['pre_width']),
+        ('reaim', grasp_pos + miss - d_app * 0.08, pre_pos, 1.0, EXPERT['pre_width']),
+    ] if retry else []
     phases = [
-        ('hold', T0[:3, 3], T0[:3, 3], 0.0, open_w),
-        ('pregrasp', T0[:3, 3], pre_pos, 1.0, EXPERT['pre_width']),
+        ('hold', T0[:3, 3], T0[:3, 3], 0.0, open_w)] + retry_phases + [
+        ('pregrasp', pre_pos if retry else T0[:3, 3], pre_pos, 1.0, EXPERT['pre_width']),
         ('approach', pre_pos, grasp_pos, 1.0, EXPERT['pre_width']),
         ('grasp', grasp_pos, grasp_pos, 1.0, EXPERT['closed_width']),
         ('pull', grasp_pos, pull_pos, 1.0, EXPERT['closed_width']),
@@ -117,6 +129,7 @@ def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=No
     rec = dict(action=[], state=[], drawer=[], phase=[])
     x = x_ready.copy()
     width_cmd = open_w
+    blended = False                         # the wrist turns from the ready orientation only on the first pregrasp
     for name, p_from, p_to, _, w_end in phases:
         steps = int(round(EXPERT['durations'][name] * HZ))
         w_start = width_cmd
@@ -126,7 +139,7 @@ def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=No
             pos = p_from + (p_to - p_from) * s
             if name == 'hold':
                 x_tgt = x_ready
-            elif name == 'pregrasp':
+            elif name == 'pregrasp' and not blended:
                 # blend orientation from the ready pose to the grasp orientation
                 z = T0[:3, 2] * (1 - s) + z_goal * s; z /= np.linalg.norm(z)
                 y = T0[:3, 1] * (1 - s) + y_goal * s; y -= z * np.dot(y, z); y /= np.linalg.norm(y)
@@ -149,6 +162,7 @@ def run_episode(m, d, task, cfg, mode='left', render=None, log=print, q_extra=No
             for _ in range(n_sub):
                 mujoco.mj_step(m, d)
             rec['drawer'].append(float(d.qpos[slide_adr]))
+        blended = blended or name == 'pregrasp'
         tcp_now = d.body('tool_tcp_link').xpos
         log(f'  {name:9s} done: drawer open {d.qpos[slide_adr] * 100:5.1f} cm, '
             f'gripper {cs.get_q(m, d, "virtual_gripper_joint") * 1000:5.1f} mm, '

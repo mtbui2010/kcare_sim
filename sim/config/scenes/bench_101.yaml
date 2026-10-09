@@ -1,0 +1,256 @@
+bench:
+  seed: 101
+objects:
+- name: bleach bottle
+  ycb: 021_bleach_cleanser
+  surface: desk@study room
+  offset:
+  - -0.009
+  - -0.071
+  yaw_deg: -22.3
+  bench:
+    from_front: 0.229
+    target: true
+- name: plum
+  ycb: 018_plum
+  surface: desk@study room
+  offset:
+  - -0.184
+  - -0.094
+  yaw_deg: -48.1
+  bench:
+    from_front: 0.206
+    target: true
+- name: bowl
+  ycb: 024_bowl
+  surface: drawer@kitchen
+  offset:
+  - 0.076
+  - -0.014
+  yaw_deg: -157.4
+  bench:
+    from_front: 0.236
+    target: true
+- name: strawberry
+  ycb: 012_strawberry
+  surface: drawer@kitchen
+  offset:
+  - 0.158
+  - -0.16
+  yaw_deg: -81.4
+  bench:
+    from_front: 0.09
+    target: true
+- name: lemon
+  ycb: 014_lemon
+  surface: counter@kitchen
+  offset:
+  - -0.102
+  - -0.199
+  yaw_deg: -84.9
+  bench:
+    from_front: 0.121
+    target: true
+- name: plate
+  ycb: 029_plate
+  surface: counter@kitchen
+  offset:
+  - 0.165
+  - -0.005
+  yaw_deg: 156.1
+  bench:
+    from_front: 0.315
+    target: false
+- name: soup can
+  ycb: 005_tomato_soup_can
+  surface: shelf@kitchen
+  offset:
+  - -0.028
+  - -0.16
+  yaw_deg: -172.4
+  bench:
+    from_front: 0.1
+    target: true
+- name: baseball
+  ycb: 055_baseball
+  surface: shelf@kitchen
+  offset:
+  - 0.213
+  - -0.02
+  yaw_deg: -164.3
+  bench:
+    from_front: 0.24
+    target: true
+- name: pear
+  ycb: 016_pear
+  surface: shelf@kitchen
+  offset:
+  - -0.22
+  - -0.012
+  yaw_deg: 120.7
+  bench:
+    from_front: 0.248
+    target: true
+- name: apple
+  ycb: 013_apple
+  surface: dining table@kitchen
+  offset:
+  - -0.047
+  - -0.49
+  yaw_deg: -22.1
+  bench:
+    from_front: 0.205
+    target: true
+- name: peach
+  ycb: 015_peach
+  surface: dining table@kitchen
+  offset:
+  - 0.111
+  - -0.557
+  yaw_deg: 92.8
+  bench:
+    from_front: 0.138
+    target: true
+- name: foam brick
+  ycb: 061_foam_brick
+  surface: dining table@kitchen
+  offset:
+  - -0.253
+  - -0.498
+  yaw_deg: -176.1
+  bench:
+    from_front: 0.197
+    target: true
+- name: pitcher
+  ycb: 019_pitcher_base
+  surface: dining table@kitchen
+  offset:
+  - 0.189
+  - -0.381
+  yaw_deg: -152.5
+  bench:
+    from_front: 0.314
+    target: false
+- name: orange cup
+  ycb: 065-a_cups
+  surface: washer@laundry room
+  offset:
+  - 0.006
+  - 0.122
+  yaw_deg: 94.7
+  bench:
+    from_front: 0.422
+    target: true
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: washer@laundry room
+  offset:
+  - -0.236
+  - -0.082
+  yaw_deg: -123.0
+  bench:
+    from_front: 0.218
+    target: true
+- name: green cup
+  ycb: 065-c_cups
+  surface: chest@bedroom
+  offset:
+  - 0.133
+  - -0.037
+  yaw_deg: 63.7
+  bench:
+    from_front: 0.173
+    target: true
+- name: orange
+  ycb: 017_orange
+  surface: chest@bedroom
+  offset:
+  - 0.031
+  - -0.113
+  yaw_deg: -129.5
+  bench:
+    from_front: 0.097
+    target: true
+- name: jello box
+  ycb: 009_gelatin_box
+  surface: stool@bedroom
+  offset:
+  - 0.064
+  - 0.045
+  yaw_deg: -113.8
+  bench:
+    from_front: 0.245
+    target: true
+- name: tennis ball
+  ycb: 056_tennis_ball
+  surface: stool@bedroom
+  offset:
+  - -0.045
+  - -0.085
+  yaw_deg: 110.1
+  bench:
+    from_front: 0.115
+    target: true
+- name: sugar box
+  ycb: 004_sugar_box
+  surface: stool@bedroom
+  offset:
+  - -0.197
+  - 0.03
+  yaw_deg: -122.6
+  bench:
+    from_front: 0.23
+    target: true
+- name: spray bottle
+  ycb: 022_windex_bottle
+  surface: stool@bedroom
+  offset:
+  - 0.169
+  - -0.108
+  yaw_deg: -48.6
+  bench:
+    from_front: 0.092
+    target: true
+- name: blue ball
+  ycb: 057_racquetball
+  surface: shelf@restroom
+  offset:
+  - -0.18
+  - 0.037
+  yaw_deg: 70.8
+  bench:
+    from_front: 0.137
+    target: true
+- name: coffee can
+  ycb: 002_master_chef_can
+  surface: shelf@restroom
+  offset:
+  - -0.002
+  - 0.008
+  yaw_deg: -95.1
+  bench:
+    from_front: 0.108
+    target: true
+- name: mug
+  ycb: 025_mug
+  surface: shelf@restroom
+  offset:
+  - 0.169
+  - 0.009
+  yaw_deg: -68.7
+  bench:
+    from_front: 0.109
+    target: true
+furniture:
+  dining_table:
+    pos:
+    - 1.204
+    - -2.261
+    yaw_deg: 189.3
+  stool:
+    pos:
+    - -4.161
+    - 0.943
+    yaw_deg: 6.5
+  dchair0:
+    remove: true

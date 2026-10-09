@@ -23,14 +23,19 @@ these exactly as on the robot, so its skills (move, find, ...) run unchanged:
             /body/tool_controller/gripper_cmd (control_msgs GripperCommand)
   services  /mobile/{shift_pose, rotate, absolute_rotate}  /create_object_marker  /create_tool_marker  /arm/init_set
 
-The base is kinematic (mocap): navigation plans A* on an occupancy grid made from
+The base is kinematic (planar joints, position + velocity set each step): navigation plans A* on an occupancy grid made from
 the house geometry and drives the base along it. Lift, head, arm and gripper
 are the simulated position servos; arm goals are joint-space moves (MoveL /
 MoveT go through IK first). Frames: map = world, base_footprint = the robot base.
 """
 import argparse, array, heapq, math, os, sys, threading, time
 
+# Thread pools: OpenBLAS / OpenCV default to one thread per core (48 here) and spin; three bridges side by side
+# pushed the load to 100+ and the head camera from ~7 Hz down to < 1 Hz. SIM_THREADS (default 4) per pool.
+for _v in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
+    os.environ.setdefault(_v, os.environ.get('SIM_THREADS', '4'))
 import cv2
+cv2.setNumThreads(int(os.environ.get('SIM_THREADS', '4')))
 import mujoco
 import numpy as np
 import yaml
@@ -64,7 +69,9 @@ ACT = {'lift_joint': 'lift', 'head_joint1': 'head_pan', 'head_joint2': 'head_til
        'virtual_gripper_joint': 'gripper', **{j: j for j in ARM}}
 SPEED = {'lift_joint': 0.08, 'head_joint1': 1.0, 'head_joint2': 1.0, 'virtual_gripper_joint': 0.05}  # per s
 ARM_SPEED = 0.9                     # rad/s at velocity_scale 1
+ARM_ACC = 2.5                       # rad/s^2 peak at kcare's usual acceleration_scale 0.3
 BASE_V, BASE_W = 0.45, 0.9          # m/s, rad/s
+BASE_A, BASE_AW = 0.5, 1.5          # m/s^2, rad/s^2 (speed ramps of the kinematic base)
 WALL_TOP = 2.5                       # top-down camera: frame the house at wall height
 ROBOT_R = 0.30                      # planner inflation [m]: slamtec base ~0.28 + 2 cm (0.36 closed the 0.9 m doors)
 MAP_FRAME = 'slamware_map'
@@ -111,8 +118,11 @@ class Sim:
         for f in self.fingers:
             self.d.qpos[f] = 0.05
         self.traj = {}                       # joint -> (q0, q1, t0, T)
+        # injected faults (task tests): kind -> {n, ...}; see Bridge.sim_command 'fault'
+        self.faults, self.fired, self.slip_at, self.no_grasp = {}, [], None, False
         self.base_goal = None                # ('turn', yaw) | ('drive', x, y, v, check) ; advanced in sim time
         self.base_done = threading.Event(); self.base_done.set()
+        self.base_vel = [0.0, 0.0]           # current linear (m/s) / angular (rad/s) speed of the base
         self.base_ok = True
         self._set_mocap()
         mujoco.mj_forward(self.m, self.d)
@@ -122,12 +132,111 @@ class Sim:
         self.start = dict(start)
         self.init = {}                       # joint -> qpos at load (objects, drawers): what reset restores
 
+    def _grip_physics(self):
+        """Finger pads like the real rubber tips: torsional / rolling friction (condim 6) and a no-slip pass, so a
+        held object does not creep out of a 45 N grasp (MuJoCo's soft contacts let round objects roll out)."""
+        m = self.m
+        m.opt.noslip_iterations = max(int(m.opt.noslip_iterations), 10)
+        for jn in ('left_finger_tip_joint', 'right_finger_tip_joint'):
+            b0 = m.jnt_bodyid[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)]
+            for g in range(m.body_geomadr[b0], m.body_geomadr[b0] + m.body_geomnum[b0]):
+                m.geom_condim[g] = 6
+                m.geom_friction[g] = [1.5, 0.05, 0.002]
+
     def _index(self):
         m = self.m
+        self._grip_physics()
+        self.grasp_eq = {}                                   # object body -> its grasp weld (house_scene.grasp_welds)
+        for e in range(m.neq):
+            n = m.eq(e).name
+            if n.startswith('grasp_'):
+                self.grasp_eq[m.body(m.eq_obj2id[e]).name] = e
+        self.grasp_on = None                                 # the object welded to the gripper now
+        self.tips = {}
+        for s_, jn in (('L', 'left_finger_tip_joint'), ('R', 'right_finger_tip_joint')):
+            b0 = m.jnt_bodyid[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)]
+            self.tips[int(b0)] = s_
+        self.gripper_body = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'gripper_body_link')
+        ids = [mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, j) for j in ('base_x', 'base_y', 'base_yaw')]
+        self.base_q = [(m.jnt_qposadr[i], m.jnt_dofadr[i]) for i in ids] if min(ids) >= 0 else None
         self.aid = {j: mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_ACTUATOR, a) for j, a in ACT.items()}
         self.qadr = {j: m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, j)] for j in JOINTS}
         self.fingers = [m.jnt_qposadr[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, f)]
                         for f in ('left_finger_tip_joint', 'right_finger_tip_joint')]
+
+    def take_fault(self, kind):
+        """The parameters of an armed fault of `kind` (one shot used up), or None."""
+        f = self.faults.get(kind)
+        if not f:
+            return None
+        f['n'] = int(f.get('n', 1)) - 1
+        if f['n'] <= 0:
+            self.faults.pop(kind, None)
+        self.fired.append({'kind': kind, 't': round(self.t, 2), **{k: v for k, v in f.items() if k != 'n'}})
+        return f
+
+    def release_grasp(self, open_w=0.1):
+        """The object slips out: weld off and the fingers open (caller holds the lock)."""
+        n = self.grasp_on
+        if n is not None:
+            self.d.eq_active[self.grasp_eq[n]] = 0
+            self.grasp_on = None
+        self.traj.pop('virtual_gripper_joint', None)
+        self.d.ctrl[self.aid['virtual_gripper_joint']] = open_w
+        return n
+
+    def _grasp_assist(self, min_force=10.0):
+        """Weld an object to the gripper while both finger tips squeeze it (>= min_force N each) and the gripper is
+        closing / holding; release as soon as the gripper is commanded open. A sim stand-in for a firm grasp: the
+        fingers still have to close on the object for it to count."""
+        m, d = self.m, self.d
+        if not self.grasp_eq:
+            return
+        if self.slip_at is not None and self.t >= self.slip_at:
+            self.slip_at = None
+            self.release_grasp()
+            return
+        g = self.aid['virtual_gripper_joint']
+        tr = self.traj.get('virtual_gripper_joint')
+        if self.grasp_on is not None:
+            if (tr is not None and tr[1] > self.grasp_q + 0.004) or (tr is None and d.ctrl[g] > self.grasp_q + 0.004):
+                d.eq_active[self.grasp_eq[self.grasp_on]] = 0            # commanded open: let go
+                self.grasp_on = None
+            else:
+                d.ctrl[g] = self.grasp_q                    # hold the width it closed to (no tug-of-war with the weld)
+            return
+        if d.ctrl[g] > self.q('virtual_gripper_joint') + 0.004:
+            self.no_grasp = False                            # opening ends an injected no-grasp
+            return
+        force, f6 = {}, np.zeros(6)
+        for i in range(d.ncon):
+            c = d.contact[i]
+            b1, b2 = int(m.geom_bodyid[c.geom1]), int(m.geom_bodyid[c.geom2])
+            for t_, o in ((b1, b2), (b2, b1)):
+                if t_ in self.tips:
+                    n = m.body(o).name
+                    if n in self.grasp_eq:
+                        mujoco.mj_contactForce(m, d, i, f6)
+                        k = (n, self.tips[t_]); force[k] = force.get(k, 0.0) + float(f6[0])
+        for n in {k[0] for k in force}:
+            if force.get((n, 'L'), 0) >= min_force and force.get((n, 'R'), 0) >= min_force:
+                e = self.grasp_eq[n]; ob = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, n)
+                p1, q1 = d.xpos[self.gripper_body], d.xquat[self.gripper_body]
+                rel = d.xmat[self.gripper_body].reshape(3, 3).T @ (d.xpos[ob] - p1)
+                qi = np.zeros(4); mujoco.mju_negQuat(qi, q1)
+                qr = np.zeros(4); mujoco.mju_mulQuat(qr, qi, d.xquat[ob])
+                m.eq_data[e][:3] = 0.0; m.eq_data[e][3:6] = rel; m.eq_data[e][6:10] = qr; m.eq_data[e][10] = 1.0
+                if self.no_grasp or self.take_fault('no_grasp'):   # fault: the fingers close but never hold it
+                    self.no_grasp = True                              # (for this whole grasp, until it opens)
+                    return
+                d.eq_active[e] = 1
+                self.grasp_on, self.grasp_q = n, self.q('virtual_gripper_joint')
+                f = self.take_fault('slip')                   # fault: slips out `after` s later (during the lift)
+                if f:
+                    self.slip_at = self.t + float(f.get('after', 1.5))
+                if tr is not None and tr[1] < self.grasp_q:
+                    self.traj.pop('virtual_gripper_joint', None)   # the close ramp ends here
+                return
 
     def scene_joints(self):
         """Free joints of the objects and slide joints of the drawers: (name, qpos adr, n qpos, dof adr, n dof)."""
@@ -171,6 +280,9 @@ class Sim:
     def reset(self, what='objects', only=None):
         """objects: objects back to their load pose | scene: + drawers closed | all: + robot at the start, arm home."""
         with self.lock:
+            if self.grasp_on is not None:                    # let go of whatever the grasp assist holds
+                self.d.eq_active[self.grasp_eq[self.grasp_on]] = 0
+                self.grasp_on = None
             for n, a, k, va, nv in self.scene_joints():
                 is_obj = n.startswith('obj_')
                 if not is_obj and what == 'objects':
@@ -191,6 +303,62 @@ class Sim:
                     self.d.qpos[f] = 0.05
                 self._set_mocap()
             mujoco.mj_forward(self.m, self.d)
+
+    def truth(self):
+        """Ground truth for skill tests: base pose, TCP, gripper, every object's world AABB (centre, z range) and
+        which objects both finger tips touch (= held)."""
+        m, d = self.m, self.d
+        with self.lock:
+            side = {}
+            for s_, jn in (('L', 'left_finger_tip_joint'), ('R', 'right_finger_tip_joint')):
+                b0 = m.jnt_bodyid[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)]
+                for b in range(m.nbody):
+                    if Planner._under(m, b, b0):                       # the tip bodies only, not the palm
+                        side[b] = side.get(b, '') + s_
+            touch, force = {}, {}
+            f6 = np.zeros(6)
+            for i in range(d.ncon):
+                c = d.contact[i]
+                b1, b2 = int(m.geom_bodyid[c.geom1]), int(m.geom_bodyid[c.geom2])
+                for a_, o in ((b1, b2), (b2, b1)):
+                    if a_ in side and m.body(o).name.startswith('obj_'):
+                        touch.setdefault(m.body(o).name, set()).update(side[a_])
+                        mujoco.mj_contactForce(m, d, i, f6)
+                        k = (m.body(o).name, side[a_])
+                        force[k] = force.get(k, 0.0) + float(f6[0])
+            objs = {}
+            corners = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)], float)
+            for g in range(m.ngeom):
+                b = int(m.geom_bodyid[g]); n = m.body(b).name
+                if not n.startswith('obj_'):
+                    continue
+                w = (corners * m.geom_aabb[g][3:] + m.geom_aabb[g][:3]) @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g]
+                lo, hi = w.min(0), w.max(0)
+                if n in objs:
+                    lo, hi = np.minimum(lo, objs[n][0]), np.maximum(hi, objs[n][1])
+                objs[n] = (lo, hi)
+            tcp = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'tool_tcp_link')
+            out = {'base': [round(float(self.base[0]), 4), round(float(self.base[1]), 4), round(math.degrees(self.base[2]), 2)],
+                   'tcp': [round(float(v), 4) for v in d.xpos[tcp]] if tcp >= 0 else None,
+                   'tcp_R': [round(float(v), 5) for v in d.xmat[tcp]] if tcp >= 0 else None,
+                   'quat': {n: [round(float(v), 5) for v in d.xquat[b]] for b in range(m.nbody)
+                            for n in [m.body(b).name] if n.startswith('obj_')},
+                   'gripper': round(float(self.q('virtual_gripper_joint')), 4),
+                   'grip_ctrl': round(float(d.ctrl[self.aid['virtual_gripper_joint']]), 4),
+                   'arm_busy': sorted(self.traj),
+                   'lift': round(float(self.q('lift_joint')), 4),
+                   'held': sorted({n for n, t in touch.items() if 'L' in ''.join(t) and 'R' in ''.join(t)}
+                                  | ({self.grasp_on} if self.grasp_on else set())),
+                   'assist': self.grasp_on,
+                   'drawers': {m.joint(j).name: round(float(d.qpos[m.jnt_qposadr[j]]), 4) for j in range(m.njnt)
+                               if m.joint(j).name.endswith('_slide')},
+                   'touching': {n: ''.join(sorted(set(''.join(t)))) for n, t in touch.items()},
+                   'grip_force': {f'{n}:{s_}': round(v, 2) for (n, s_), v in force.items()},
+                   'fingers': [round(float(d.qpos[f]), 4) for f in self.fingers],
+                   'objects': {n: {'centre': [round(float(v), 4) for v in (lo + hi) / 2],
+                                   'zmin': round(float(lo[2]), 4), 'zmax': round(float(hi[2]), 4),
+                                   'size': [round(float(v), 4) for v in hi - lo]} for n, (lo, hi) in objs.items()}}
+        return out
 
     def objects(self):
         """Live object poses: [{name, body, pos [x, y, z], yaw_deg, quat [w, x, y, z]}]."""
@@ -234,11 +402,15 @@ class Sim:
             mujoco.mj_forward(m, self.d)
         return True, f'{body} at ({x:.2f}, {y:.2f}) on z {zs:.3f}'
 
-    # base pose (kinematic)
-    def _set_mocap(self):
+    # base pose (kinematic): planar joints base_x / base_y / base_yaw, position and velocity written every step
+    def _set_mocap(self, vel=(0.0, 0.0, 0.0)):
         x, y, a = self.base
-        self.d.mocap_pos[0] = [x, y, 0.0]
-        self.d.mocap_quat[0] = [math.cos(a / 2), 0, 0, math.sin(a / 2)]
+        if self.base_q is None:                              # an old house.xml with a mocap base
+            self.d.mocap_pos[0] = [x, y, 0.0]
+            self.d.mocap_quat[0] = [math.cos(a / 2), 0, 0, math.sin(a / 2)]
+            return
+        for (qa, va), q, v in zip(self.base_q, (x, y, a), vel):
+            self.d.qpos[qa] = q; self.d.qvel[va] = v
 
     def set_base(self, x, y, a):
         with self.lock:
@@ -256,30 +428,35 @@ class Sim:
             self.base_done.set()
 
     def _base_step(self, dt):
+        """Advance the kinematic base with a trapezoidal speed profile (accelerate at BASE_A / BASE_AW, brake to
+        stop on the goal). The base is mocap: without the ramp it jumped to full speed in one step, an infinite
+        acceleration that flung whatever the gripper held (and is not what a real base does)."""
         g = self.base_goal
         if g is None:
+            self.base_vel = [0.0, 0.0]
             return
         x, y, a = self.base
         if g[0] == 'turn':
             e = wrap(g[1] - a)
-            if abs(e) <= BASE_W * dt:
-                self.base[2] = wrap(g[1]); self.base_goal = None; self.base_done.set()
+            w = min(self.base_vel[1] + BASE_AW * dt, BASE_W, math.sqrt(2 * BASE_AW * abs(e)))
+            if abs(e) <= max(w * dt, 1e-4):
+                self.base[2] = wrap(g[1]); self.base_goal = None; self.base_vel = [0.0, 0.0]; self.base_done.set()
             else:
-                self.base[2] = wrap(a + math.copysign(BASE_W * dt, e))
+                self.base[2] = wrap(a + math.copysign(w * dt, e)); self.base_vel[1] = w
             return
-        _, gx, gy, v, check = g
+        _, gx, gy, vmax, check = g
         dx, dy = gx - x, gy - y
         dist = math.hypot(dx, dy)
-        if dist <= v * dt:
-            nx, ny = gx, gy
-        else:
-            nx, ny = x + dx / dist * v * dt, y + dy / dist * v * dt
+        v = min(self.base_vel[0] + BASE_A * dt, vmax, math.sqrt(2 * BASE_A * dist))
+        arrive = dist <= max(v * dt, 1e-4)
+        nx, ny = (gx, gy) if arrive else (x + dx / dist * v * dt, y + dy / dist * v * dt)
         if check is not None and not check(nx, ny):
-            self.base_ok = False; self.base_goal = None; self.base_done.set()
+            self.base_ok = False; self.base_goal = None; self.base_vel = [0.0, 0.0]; self.base_done.set()
             return
         self.base[0], self.base[1] = nx, ny
-        if dist <= v * dt:
-            self.base_goal = None; self.base_done.set()
+        self.base_vel[0] = v
+        if arrive:
+            self.base_goal = None; self.base_vel = [0.0, 0.0]; self.base_done.set()
 
     def q(self, j):
         return float(self.d.qpos[self.qadr[j]])
@@ -305,8 +482,16 @@ class Sim:
                         self.d.ctrl[self.aid[j]] = a + (b - a) * smooth(s)
                         if s >= 1:
                             del self.traj[j]
+                    prev = self.base.copy()
+                    if _ == 0:
+                        if (self.grasp_on is not None and 'drop_on_move' in self.faults and self.slip_at is None
+                                and abs(self.base_vel[0]) > 0.05):
+                            f = self.take_fault('drop_on_move')
+                            self.slip_at = self.t + float(f.get('after', 1.0))
+                        self._grasp_assist()
                     self._base_step(dt)
-                    self._set_mocap()
+                    self._set_mocap(((self.base[0] - prev[0]) / dt, (self.base[1] - prev[1]) / dt,
+                                     wrap(self.base[2] - prev[2]) / dt))
                     mujoco.mj_step(self.m, self.d)
                     self.t += dt
             lag = (self.t - sim0) - (time.time() - wall0)
@@ -551,18 +736,33 @@ class Bridge(Node):
                               if os.path.isdir(house_scene.SCENES_DIR) else [],
                     'objects': objs, 'furniture': lay.get('furniture', {}), 'catalog': lay.get('catalog', {}),
                     'spots': list((lay.get('spots') or {}).keys())}
+        if c == 'truth':
+            return {'ok': True, 'version': self.sim.version, 'render_version': getattr(self, 'render_version', None),
+                    **self.sim.truth()}
         if c == 'reset':
             what = cmd.get('what', 'objects')
             self.sim.reset(what, cmd.get('only'))
             return {'ok': True, 'msg': f'reset {what}' + (f" ({', '.join(cmd['only'])})" if cmd.get('only') else '')}
+        if c == 'fault':                                   # arm / clear injected faults (task tests)
+            with self.sim.lock:
+                if cmd.get('clear'):
+                    self.sim.faults.clear(); self.sim.slip_at = None; self.sim.no_grasp = False
+                for k, v in (cmd.get('set') or {}).items():
+                    if k not in ('nav_fail', 'nav_offset', 'no_grasp', 'slip', 'drop_on_move'):
+                        return {'ok': False, 'msg': f'unknown fault {k!r}'}
+                    self.sim.faults[k] = dict(v or {}, n=int((v or {}).get('n', 1)))
+                fired = list(self.sim.fired)
+                if cmd.get('clear'):
+                    self.sim.fired.clear()
+            return {'ok': True, 'armed': self.sim.faults, 'fired': fired}
         if c == 'move_object':
             ok, msg = self.sim.teleport(cmd['body'], float(cmd['x']), float(cmd['y']), cmd.get('yaw_deg'))
             self.dirty |= ok
             return {'ok': ok, 'msg': msg}
         if c == 'apply':                                   # a full scene dict -> rebuild + hot reload
-            return self.apply_scene(cmd.get('scene') or {}, cmd.get('name', '_working'))
+            return self.apply_scene(cmd.get('scene') or {}, cmd.get('name', '_working'), cmd.get('standoff'))
         if c == 'load':
-            return self.apply_scene(house_scene.load_scene(cmd['name']), cmd['name'])
+            return self.apply_scene(house_scene.load_scene(cmd['name']), cmd['name'], cmd.get('standoff'))
         if c == 'save':
             name = str(cmd['name']).strip()
             if not name or '/' in name or name.startswith(('.', '_')):
@@ -599,7 +799,7 @@ class Bridge(Node):
         p = built.get('pos')
         return not p or math.dist(o['pos'][:2], p[:2]) > 0.03 or abs(o['pos'][2] - p[2]) > 0.05
 
-    def apply_scene(self, scene, name):
+    def apply_scene(self, scene, name, standoff=None):
         """Rebuild house.xml (+ height map, kcare ENV / MAP) for `scene` and hot-swap the model; the robot stays."""
         t0 = time.time()
         os.makedirs(house_scene.SCENES_DIR, exist_ok=True)
@@ -611,7 +811,9 @@ class Bridge(Node):
         if r.returncode != 0:
             return {'ok': False, 'msg': 'rebuild failed: ' + (r.stderr or r.stdout)[-400:]}
         skipped = [l for l in r.stdout.splitlines() if 'skipped' in l]
-        r2 = subprocess.run([py, f'{SIM}/scripts/make_kcare_sim_location.py'], capture_output=True, text=True, env=env)
+        r2 = subprocess.run([py, f'{SIM}/scripts/make_kcare_sim_location.py']
+                            + ([] if standoff is None else ['--standoff', str(float(standoff))]),
+                            capture_output=True, text=True, env=env)
         if r2.returncode != 0:
             return {'ok': False, 'msg': 'kcare site update failed: ' + (r2.stderr or r2.stdout)[-400:]}
         self.sim.reload(f'{SIM}/mjcf/house.xml')
@@ -648,6 +850,10 @@ class Bridge(Node):
 
     def on_servo(self, msg):
         """Streamed targets from a policy: no interpolation (the policy already runs at 30 Hz), ctrl range clipped."""
+        now = time.time()
+        if now - getattr(self, '_servo_log', 0) > 5:
+            self._servo_log = now
+            self.get_logger().info(f'arm_servo stream: {dict(zip(msg.name, [round(v, 3) for v in msg.position]))}')
         with self.sim.lock:
             for n, v in zip(msg.name, msg.position):
                 if n in self.sim.aid:
@@ -692,6 +898,7 @@ class Bridge(Node):
     def _render_until_reload(self):
         m, sim = self.sim.m, self.sim
         version = sim.version
+        self.render_version = None                           # set once this loop renders the new model
         R = {'head': mujoco.Renderer(m, 720, 1280), 'wrist': mujoco.Renderer(m, 480, 848), 'over': mujoco.Renderer(m, 480, 848)}
         cam_id = {'head': mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_CAMERA, 'head_rgb'),
                   'wrist': mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_CAMERA, 'wrist_rgb')}
@@ -772,6 +979,7 @@ class Bridge(Node):
             oc = CompressedImage(); oc.header.stamp = stamp(t); oc.format = 'rgb8; jpeg compressed bgr8'
             oc.data = u8(cv2.imencode('.jpg', cv2.cvtColor(ov, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 80])[1].tobytes())
             self.p_over.publish(oc)
+            self.render_version = version
             tp = R['top'].render()
             tc = CompressedImage(); tc.header.stamp = stamp(t); tc.format = 'rgb8; jpeg compressed bgr8'
             tc.data = u8(cv2.imencode('.jpg', cv2.cvtColor(tp, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 80])[1].tobytes())
@@ -846,8 +1054,16 @@ class Bridge(Node):
         p = gh.request.pose.pose
         goal = (p.position.x, p.position.y)
         x, y, _ = self.sim.base
-        way = self.planner.plan((x, y), goal)
         res = NavigateToPose.Result()
+        if self.sim.take_fault('nav_fail'):                 # fault: navigation gives up at once
+            self.get_logger().warn('navigate_to_pose: injected fault nav_fail')
+            gh.abort(); return res
+        f = self.sim.take_fault('nav_offset')               # fault: arrives off the goal but reports success
+        if f:
+            yaw = yaw_of(p.orientation); d_ = float(f.get('d', 0.4))
+            goal = (goal[0] + d_ * math.cos(yaw), goal[1] + d_ * math.sin(yaw))   # along the heading (= along the table)
+            self.get_logger().warn(f'navigate_to_pose: injected fault nav_offset {d_} m -> {goal}')
+        way = self.planner.plan((x, y), goal)
         if way is None:
             self.get_logger().warn(f'navigate_to_pose: no path to {goal}')
             gh.abort(); return res
@@ -859,11 +1075,21 @@ class Bridge(Node):
         gh.succeed() if ok else gh.abort()
         return res
 
-    def _clear(self, x, y):
+    BASE_R = 0.24                                            # the mobile base's own footprint (no inflation)
+
+    def _blocked(self, x, y):
+        """Obstacle cells under a disc of BASE_R at (x, y)."""
         i, j = self.planner.cell(x, y)
-        k = int(0.25 / self.planner.res)                     # the base's own footprint only (no inflation)
+        k = int(math.ceil(self.BASE_R / self.planner.res))
         sub = self.planner.occ[max(j - k, 0):j + k + 1, max(i - k, 0):i + k + 1]
-        return not sub.any()
+        yy, xx = np.mgrid[max(j - k, 0) - j:max(j - k, 0) - j + sub.shape[0], max(i - k, 0) - i:max(i - k, 0) - i + sub.shape[1]]
+        return int(np.count_nonzero(sub & ((xx ** 2 + yy ** 2) * self.planner.res ** 2 <= self.BASE_R ** 2)))
+
+    def _clear_from(self, x0, y0):
+        """Step check for shift_pose: refuse only a step that touches MORE obstacle than where the shift started
+        (a base already grazing a wall or table may still slide along it or back away)."""
+        n0 = self._blocked(x0, y0)
+        return lambda x, y: self._blocked(x, y) <= n0
 
     def _in_thread(self, fn, wait):
         if wait:
@@ -879,7 +1105,8 @@ class Bridge(Node):
 
     def _drive_straight(self, goal, a):
         """shift_pose moves along the heading without turning (backwards for a negative distance)."""
-        ok = self._base(('drive', goal[0], goal[1], 0.25, self._clear))
+        x0, y0, _ = self.sim.base
+        ok = self._base(('drive', goal[0], goal[1], 0.25, self._clear_from(x0, y0)))
         if not ok:
             self.get_logger().warn('shift_pose: blocked')
         return ok
@@ -905,11 +1132,16 @@ class Bridge(Node):
         time.sleep(0.15)                                      # let the servo settle
         return True
 
-    def _go(self, gh, targets, speed):
+    def _go(self, gh, targets, speed, acc=None):
+        """Move joints along smoothstep profiles: duration from the speed limit and, with `acc`, from the peak
+        acceleration of a smoothstep (6 d / T^2 <= acc)."""
         lo = {j: self.sim.m.actuator_ctrlrange[self.sim.aid[j]] for j in targets}
         targets = {j: float(np.clip(v, *lo[j])) for j, v in targets.items()}
         with self.sim.lock:
-            T = max(abs(v - self.sim.d.ctrl[self.sim.aid[j]]) / speed[j] for j, v in targets.items())
+            d = {j: abs(v - self.sim.d.ctrl[self.sim.aid[j]]) for j, v in targets.items()}
+        T = max(d[j] / speed[j] for j in targets)
+        if acc:
+            T = max([T] + [math.sqrt(6 * d[j] / acc[j]) for j in targets if j in acc])
         self.sim.move_joints(targets, T)
         return self._wait(gh, list(targets), timeout=T + 10), targets
 
@@ -929,7 +1161,9 @@ class Bridge(Node):
         return res
 
     def on_grip(self, gh):
+        self.get_logger().info(f'gripper goal {gh.request.command.position:.4f} (now {self.sim.q("virtual_gripper_joint"):.4f})')
         ok, t = self._go(gh, {'virtual_gripper_joint': gh.request.command.position}, SPEED)
+        self.get_logger().info(f'gripper goal {gh.request.command.position:.4f} done ok={ok} at {self.sim.q("virtual_gripper_joint"):.4f}')
         res = GripperCommand.Result()
         res.position = self.sim.q('virtual_gripper_joint')
         res.reached_goal = abs(res.position - t['virtual_gripper_joint']) < 0.004
@@ -937,13 +1171,14 @@ class Bridge(Node):
         gh.succeed() if not gh.is_cancel_requested else gh.canceled()
         return res
 
-    def _arm_to(self, gh, x, scale):
+    def _arm_to(self, gh, x, scale, acc_scale=0.3):
         speed = {j: ARM_SPEED * (scale if scale > 0 else 0.6) for j in ARM}
-        return self._go(gh, dict(zip(ARM, x)), speed)[0]
+        acc = {j: ARM_ACC * (acc_scale if acc_scale > 0 else 0.3) / 0.3 for j in ARM}
+        return self._go(gh, dict(zip(ARM, x)), speed, acc)[0]
 
     def on_movej(self, gh):
         r = gh.request
-        ok = self._arm_to(gh, list(r.target_joints), r.velocity_scale)
+        ok = self._arm_to(gh, list(r.target_joints), r.velocity_scale, getattr(r, "acceleration_scale", 0.3))
         res = MoveJoint.Result(); res.success = ok; res.message = 'ok' if ok else 'cancelled or timeout'
         res.final_joints = [self.sim.q(j) for j in ARM]
         (gh.succeed() if ok else gh.abort()) if not gh.is_cancel_requested else gh.canceled()
