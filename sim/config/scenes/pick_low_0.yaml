@@ -1,0 +1,47 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: coffee table
+  type: coffee table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: potted meat can
+  ycb: 010_potted_meat_can
+  surface: coffee table@living room
+  offset:
+  - 0.071
+  - -0.117
+  yaw_deg: 332
+- name: red cup
+  ycb: 065-a_cups
+  surface: coffee table@living room
+  offset:
+  - 0.356
+  - -0.157
+  yaw_deg: 327
+- name: orange
+  ycb: 017_orange
+  surface: coffee table@living room
+  offset:
+  - 0.201
+  - -0.14
+  yaw_deg: 82
+- name: phone
+  ycb: r13_phone
+  surface: coffee table@living room
+  offset:
+  - -0.132
+  - -0.111
+  yaw_deg: 359
+- name: tennis ball
+  ycb: 056_tennis_ball
+  surface: coffee table@living room
+  offset:
+  - -0.273
+  - -0.13
+  yaw_deg: 64

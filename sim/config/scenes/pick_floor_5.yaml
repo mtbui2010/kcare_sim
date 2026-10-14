@@ -1,0 +1,47 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: floor
+  type: floor mat
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: floor@living room
+  offset:
+  - -0.063
+  - -0.137
+  yaw_deg: 47
+- name: banana
+  ycb: 011_banana
+  surface: floor@living room
+  offset:
+  - -0.244
+  - -0.09
+  yaw_deg: 16
+- name: baseball
+  ycb: 055_baseball
+  surface: floor@living room
+  offset:
+  - 0.082
+  - -0.151
+  yaw_deg: 101
+- name: apple
+  ycb: 013_apple
+  surface: floor@living room
+  offset:
+  - 0.256
+  - -0.098
+  yaw_deg: 156
+- name: foam brick
+  ycb: 061_foam_brick
+  surface: floor@living room
+  offset:
+  - -0.154
+  - -0.112
+  yaw_deg: 212

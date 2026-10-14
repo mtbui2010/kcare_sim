@@ -26,10 +26,14 @@ start_sim() {
 start_kcare() {
     pgrep -f "[u]vicorn.*--port $PORT" >/dev/null && { echo "kcare already running"; return; }
     [ -x $KCARE_PY ] || { echo "no $KCARE_PY"; return 1; }
-    # the real robot's code, read-only from the dev PC (host: ~/.local/bin/kcare_remote_mount.sh, cron)
-    [ -d /kcare_mnt/remote_dir/kcare_robot ] || { echo "kcare code not mounted (/kcare_mnt/remote_dir): is the tunnel on .11 up?"; return 1; }
+    # code (2026-10-14, owner: work on the A6000's own repos, not .11): /sim/kcare_code = a copy of
+    # ~/trung_workdir/{robot_agent,kcare_robot,embodiplan}, refreshed on the HOST by scripts/sync_kcare_code.sh
+    # (the container does not see ~/trung_workdir). KCARE_CODE=/kcare_mnt/remote_dir = the old .11 sshfs mount.
+    KCARE_CODE=${KCARE_CODE:-/sim/kcare_code}
+    [ -d $KCARE_CODE/kcare_robot ] || { echo "no kcare code in $KCARE_CODE (run scripts/sync_kcare_code.sh on the host)"; return 1; }
+    KPP=$KCARE_CODE/robot_agent:$KCARE_CODE/kcare_robot:$KCARE_CODE/embodiplan     # before the venv's kcare_remote.pth
     cd /sim
-    OLLAMA_NUM_CTX=8192 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 nohup $KCARE_PY -m uvicorn kcare_sim_app:app --app-dir /sim/scripts \
+    KCARE_CODE=$KCARE_CODE PYTHONPATH=$KPP:$PYTHONPATH OLLAMA_NUM_CTX=8192 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 nohup $KCARE_PY -m uvicorn kcare_sim_app:app --app-dir /sim/scripts \
         --host 0.0.0.0 --port $PORT > $LOG/kcare.log 2>&1 &
     for i in $(seq 60); do curl -s -m 1 localhost:$PORT/skills >/dev/null && break; sleep 1; done
     curl -s -m 2 localhost:$PORT/skills >/dev/null || { echo "kcare failed:"; tail -30 $LOG/kcare.log; return 1; }

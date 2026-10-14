@@ -45,3 +45,8 @@ sim/scripts/*.new
 sim/scripts/*.prefault
 sim/scripts/*.bak_*
 sim/scripts/*.next
+
+# copy of ~/trung_workdir/{robot_agent,kcare_robot,embodiplan} for the sim's kcare (scripts/sync_kcare_code.sh)
+sim/kcare_code/
+# local backups of edited scripts / configs
+*.pre_*

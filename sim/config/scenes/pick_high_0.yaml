@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: small water bottle
+  ycb: r19_small_water
+  surface: high shelf@living room
+  offset:
+  - -0.193
+  - -0.061
+  yaw_deg: 156
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: high shelf@living room
+  offset:
+  - 0.016
+  - -0.071
+  yaw_deg: 198
+- name: mug
+  ycb: 025_mug
+  surface: high shelf@living room
+  offset:
+  - 0.21
+  - -0.044
+  yaw_deg: 299

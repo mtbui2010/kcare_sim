@@ -1,0 +1,47 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: floor
+  type: floor mat
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: tomato soup can
+  ycb: 005_tomato_soup_can
+  surface: floor@living room
+  offset:
+  - 0.123
+  - -0.155
+  yaw_deg: 316
+- name: coke can
+  ycb: r01_coke_can
+  surface: floor@living room
+  offset:
+  - -0.122
+  - -0.117
+  yaw_deg: 19
+- name: orange
+  ycb: 017_orange
+  surface: floor@living room
+  offset:
+  - 0.252
+  - -0.115
+  yaw_deg: 136
+- name: tennis ball
+  ycb: 056_tennis_ball
+  surface: floor@living room
+  offset:
+  - 0.006
+  - -0.099
+  yaw_deg: 140
+- name: sponge
+  ycb: 026_sponge
+  surface: floor@living room
+  offset:
+  - -0.249
+  - -0.114
+  yaw_deg: 208

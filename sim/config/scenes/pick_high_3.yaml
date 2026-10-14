@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: orange
+  ycb: 017_orange
+  surface: high shelf@living room
+  offset:
+  - -0.161
+  - -0.074
+  yaw_deg: 17
+- name: small water bottle
+  ycb: r19_small_water
+  surface: high shelf@living room
+  offset:
+  - 0.071
+  - -0.068
+  yaw_deg: 310
+- name: coke can
+  ycb: r01_coke_can
+  surface: high shelf@living room
+  offset:
+  - -0.294
+  - -0.065
+  yaw_deg: 172

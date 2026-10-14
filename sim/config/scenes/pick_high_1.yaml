@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: pudding box
+  ycb: 008_pudding_box
+  surface: high shelf@living room
+  offset:
+  - 0.055
+  - -0.056
+  yaw_deg: 296
+- name: top coffee
+  ycb: r16_top_coffee
+  surface: high shelf@living room
+  offset:
+  - -0.209
+  - -0.063
+  yaw_deg: 187
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: high shelf@living room
+  offset:
+  - 0.233
+  - -0.042
+  yaw_deg: 72

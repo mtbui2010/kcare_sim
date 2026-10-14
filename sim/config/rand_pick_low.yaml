@@ -1,0 +1,61 @@
+# Per-episode randomization for PICK phase A near the floor / on a low table (task_pick_approach_low.yaml), FRONT mode.
+# Worker A v2: front top-down 39-49 % safe (77-84 % with a base move) for 0.15-0.45 m and >= 5 cm objects near the floor;
+# target 0.35-0.55 m from the base centre (floor: >= 0.45, nearer is below the head camera's view at its -50 deg tilt);
+# lift at its lowest; start: the arm folded to the side (give:left). The shoulder / upper arm fill the LEFT half of the
+# head image in front mode whatever the arm pose (depth probe: 14-21/36 grid points visible), so targets are on the
+# robot's right (y -0.30 .. 0.05) and the head pans -20 deg: 26-31/36 visible.
+bands:
+  floor:                          # objects straight on the wooden floor of the living room (free area, front mode)
+    weight: 0.35
+    scene: pick_floor_0           # only for its 'floor@living room' spot (ENV stop, x 0.4 y 2.0, faces -y) ...
+    hide_geoms: [floor_rug]       # ... without the rug: the owner's room has bare wood there (2026-10-10)
+    base_band_prob: 0.3           # forward moves can meet the other objects: the planner rejects those
+    spots: {floor@living room: 1.0}
+    modes: {front: 1.0}
+    mode_overrides: {front: {standoff: [0.28, 0.34], target_x: [0.48, 0.60], target_y: [-0.30, 0.05], comfort: [0.25, 0.60]}}
+    start_pose: {front: 'give:left'}   # arm folded to the side: pre_pick_floor puts the hand at x 0.6, z 0.34, in the head view
+    head_tilt: -50
+    head_pan: -20                 # look right of the arm's shoulder (it fills the left of the head image in front mode)
+    view: {elev_deg: [68, 80], yaw_deg: [-15, 15]}
+    via: [0.12, 0.03]
+    lifts: [0.56, 0.6]
+    lifts_only: true
+    min_obj_h: 0.05
+  low:                            # the real sofa's seat (0.44 / 0.47 m cushions), robot facing the sofa (front mode);
+    weight: 0.65                   # no coffee table: the owner keeps the middle of the living room empty (2026-10-10)
+    scene: ''
+    spots: {sofa@living room: 1.0}
+    modes: {front: 1.0}
+    # seat front edge x -0.91, the sofa base below it reaches x -0.92: base radius 0.24 -> standoff >= 0.40 leaves
+    # room for a 0.1 m forward move; the back cushion starts 0.45 m behind the edge
+    mode_overrides: {front: {standoff: [0.40, 0.48], target_x: [0.45, 0.62], target_y: [-0.30, 0.05], comfort: [0.25, 0.62]}}
+    base_band_prob: 0.3
+    start_pose: {front: 'give:left'}
+    head_tilt: -50
+    head_pan: -20
+    view: {elev_deg: [65, 80], yaw_deg: [-15, 15]}
+    via: [0.12, 0.03]
+    lifts: [0.56, 0.6]
+    lifts_only: true
+    min_obj_h: 0.05
+modes:                            # defaults per mode (target x = along the heading in the base frame)
+  left:  &side {standoff: [0.50, 0.60], target_x: [-0.20, 0.75], max_in: 0.25, comfort: [-0.15, 0.80],
+                base_band: [[-0.45, -0.20], [0.75, 1.00]]}
+  right: *side
+  front: {standoff: [0.32, 0.45], target_x: [0.40, 0.75], target_y: [-0.25, 0.25], comfort: [0.25, 0.75]}
+robot:
+  yaw_jitter_deg: [-5, 5]         # the base does not stop exactly as planned
+  max_offset: 0.55                # how far along the front edge the stop may move from the spot centre
+  base_band_prob: 0.45            # targets the arm reaches only with the base shifted 0.1-0.2 m (kept share ~25-35%)
+objects:
+  n: [3, 6]                       # target + 2-5 distractors
+  pool: 24                        # objects in the model per worker (parked at x = 40 m)
+  pool_refresh: 10                # new pool every N episodes
+  real_prob: 0.4                  # share of the owner's real objects (r##, graspable d##)
+  lying_prob: 0.3                 # tall objects tipped over
+viewpoint:
+  dist: [0.10, 0.15]              # finger tips -> object centre [m] (the wrist camera is ~0.15 m further back)
+retry_prob: 0.2
+retry_miss: 0.08
+head_jitter_deg: {pan: [-3, 3], tilt: [-3, 3]}
+prompts: ['reach the {obj}', 'go to the {obj}', 'look at the {obj}', 'reach for the {obj}']

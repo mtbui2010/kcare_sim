@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: tomato soup can
+  ycb: 005_tomato_soup_can
+  surface: high shelf@living room
+  offset:
+  - 0.112
+  - -0.075
+  yaw_deg: 115
+- name: red cup
+  ycb: 065-a_cups
+  surface: high shelf@living room
+  offset:
+  - -0.173
+  - -0.044
+  yaw_deg: 158
+- name: coke can
+  ycb: r01_coke_can
+  surface: high shelf@living room
+  offset:
+  - 0.257
+  - -0.057
+  yaw_deg: 347

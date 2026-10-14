@@ -1,0 +1,9 @@
+# PLACE, "carry -> place" (expert_place.py, VLA data step 6): from kcare's carry pose (movej::give of the mode) with
+# the object held upright, put it down at a point on the surface (3 extra state dims: place_x / y / z in the start
+# base frame, from find_place on the robot), open, lift 0.1 m. Tabletop spots, ENV left / right modes, house background.
+expert: place
+rand_config: /sim/config/rand_place.yaml
+camera_profile: home_v1
+head_tilt: -50
+head_pan_offset: -0.12
+mode: left                           # unused by this expert (gen_dataset reads it for the drawer path only)

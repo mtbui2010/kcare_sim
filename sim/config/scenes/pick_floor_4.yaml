@@ -1,0 +1,47 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: floor
+  type: floor mat
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: grey cup
+  ycb: r07_grey_cup
+  surface: floor@living room
+  offset:
+  - -0.067
+  - -0.106
+  yaw_deg: 209
+- name: foam brick
+  ycb: 061_foam_brick
+  surface: floor@living room
+  offset:
+  - 0.201
+  - -0.126
+  yaw_deg: 62
+- name: tuna can
+  ycb: 007_tuna_fish_can
+  surface: floor@living room
+  offset:
+  - -0.212
+  - -0.139
+  yaw_deg: 327
+- name: baseball
+  ycb: 055_baseball
+  surface: floor@living room
+  offset:
+  - 0.066
+  - -0.151
+  yaw_deg: 315
+- name: remote control
+  ycb: r14_remote
+  surface: floor@living room
+  offset:
+  - -0.212
+  - -0.09
+  yaw_deg: 42

@@ -1,0 +1,40 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: coffee table
+  type: coffee table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: tennis ball
+  ycb: 056_tennis_ball
+  surface: coffee table@living room
+  offset:
+  - 0.137
+  - -0.143
+  yaw_deg: 125
+- name: banana
+  ycb: 011_banana
+  surface: coffee table@living room
+  offset:
+  - -0.191
+  - -0.171
+  yaw_deg: 320
+- name: orange
+  ycb: 017_orange
+  surface: coffee table@living room
+  offset:
+  - 0.366
+  - -0.106
+  yaw_deg: 50
+- name: bowl
+  ycb: 024_bowl
+  surface: coffee table@living room
+  offset:
+  - -0.315
+  - -0.157
+  yaw_deg: 58

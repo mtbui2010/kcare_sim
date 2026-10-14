@@ -251,3 +251,10 @@ objects:
   bench:
     from_front: 0.082
     target: true
+add:
+- id: test table
+  type: test table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0

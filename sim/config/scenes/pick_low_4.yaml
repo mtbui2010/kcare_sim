@@ -1,0 +1,47 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: coffee table
+  type: coffee table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: banana
+  ycb: 011_banana
+  surface: coffee table@living room
+  offset:
+  - 0.188
+  - -0.121
+  yaw_deg: 134
+- name: bowl
+  ycb: 024_bowl
+  surface: coffee table@living room
+  offset:
+  - -0.321
+  - -0.137
+  yaw_deg: 148
+- name: red cup
+  ycb: 065-a_cups
+  surface: coffee table@living room
+  offset:
+  - -0.099
+  - -0.159
+  yaw_deg: 262
+- name: remote control
+  ycb: r14_remote
+  surface: coffee table@living room
+  offset:
+  - 0.045
+  - -0.135
+  yaw_deg: 287
+- name: phone
+  ycb: r13_phone
+  surface: coffee table@living room
+  offset:
+  - 0.357
+  - -0.148
+  yaw_deg: 119

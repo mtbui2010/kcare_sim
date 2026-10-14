@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: coffee table
+  type: coffee table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: potted meat can
+  ycb: 010_potted_meat_can
+  surface: coffee table@living room
+  offset:
+  - 0.005
+  - -0.148
+  yaw_deg: 95
+- name: banana
+  ycb: 011_banana
+  surface: coffee table@living room
+  offset:
+  - 0.284
+  - -0.137
+  yaw_deg: 74
+- name: remote control
+  ycb: r14_remote
+  surface: coffee table@living room
+  offset:
+  - -0.223
+  - -0.159
+  yaw_deg: 284

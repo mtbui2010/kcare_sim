@@ -347,6 +347,23 @@ def _shelf(id_, pos, yaw, wire=False):
     return body(id_, pos, yaw, g, 'wire shelf' if wire else 'storage shelf'), None
 
 
+def _floor_mat(id_, pos, yaw):
+    """A patch of floor marked by a thin rug (visual only): objects put "on" it lie on the floor (pick-from-floor
+    tests). Its front faces local -y, like the tables'."""
+    return body(id_, pos, yaw, [box(f'{id_}_rug', (0, 0, 0.002), (0.35, 0.25, 0.002), rgba=(0.62, 0.66, 0.72, 1), extra=VIS)],
+                'floor mat'), dict(front=-math.pi / 2, depth=0.5, width=0.7, height=0.0, mode='front')
+
+
+def _high_shelf(id_, pos, yaw):
+    """Open wall shelf 0.8 m wide, 0.3 m deep, boards at 0.40 / 0.85 / 1.30 m (top 1.31 m); the 1.30 m board is the
+    surface (pick-from-high tests: kcare pre_pick_high, lift 1.10). Open side = local -y."""
+    c = OFFWHITE
+    g = [box(f'{id_}_side{k}', (sx * 0.4, 0, 0.8), (0.01, 0.15, 0.8), rgba=c) for k, sx in enumerate((1, -1))]
+    g += [box(f'{id_}_back', (0, 0.145, 0.8), (0.4, 0.005, 0.8), rgba=c)]
+    g += [box(f'{id_}_board{k}', (0, 0, z), (0.39, 0.15, 0.01), rgba=c) for k, z in enumerate((0.40, 0.85, 1.30))]
+    return body(id_, pos, yaw, g, 'high shelf'), dict(front=-math.pi / 2, depth=0.3, width=0.76, height=1.31, mode='front')
+
+
 def _clothes_rack(id_, pos, yaw):
     """Free-standing clothes rack: two posts on feet and a top rail at 1.6 m along local x (shirts hang from it)."""
     c = CHROME
@@ -363,6 +380,9 @@ CATALOG = {
     'dining table':  dict(label='table 1.2 × 0.75 m', make=lambda i, p, a: (table(i, p, a, 1.2, 0.75, 0.74, top_rgba=OFFWHITE, leg=OFFWHITE, type_='dining table'), dict(front=-math.pi / 2, depth=0.75, width=1.2, height=0.74))),
     'coffee table':  dict(label='low table 0.9 × 0.5 m', make=lambda i, p, a: (table(i, p, a, 0.9, 0.5, 0.42, top_rgba=(0.8, 0.7, 0.55, 1), type_='coffee table'), dict(front=-math.pi / 2, depth=0.5, width=0.9, height=0.42))),
     'side table':    dict(label='oval side table', make=_side_table),
+    'test table':    dict(label='white test table 0.5 × 0.5 m', make=lambda i, p, a: (
+        table(i, p, a, TEST_TABLE[0], TEST_TABLE[1], TEST_TABLE[2], top_rgba=WHITE, leg=WHITE, leg_r=0.015, type_='test table'),
+        dict(front=-math.pi / 2, depth=TEST_TABLE[1], width=TEST_TABLE[0], height=TEST_TABLE[2] + 0.003))),
     'stool':         dict(label='upholstered stool', make=_stool),
     'chest':         dict(label='white chest, 3 drawers', make=_cabinet('W_chest')),
     'pedestal':      dict(label='pedestal cabinet (grey/wood)', make=_cabinet('A_home')),
@@ -372,6 +392,8 @@ CATALOG = {
     'wire shelf':    dict(label='wire shelf 5 tiers', make=lambda i, p, a: _shelf(i, p, a, wire=True)),
     'storage shelf': dict(label='white storage shelf', make=_shelf),
     'clothes rack':  dict(label='clothes rack (rail 1.6 m)', make=_clothes_rack),
+    'floor mat':     dict(label='floor patch (rug) — objects on the floor', make=_floor_mat),
+    'high shelf':    dict(label='open shelf, top board 1.30 m', make=_high_shelf),
 }
 
 
@@ -429,12 +451,11 @@ def furniture(cab_style=None, site=None):
         stadium('stab_tray', (0, 0, 0.16), 0.24, 0.16, 0.02, rgba=OFFWHITE, axis='y')] +
         [cyl(f'stab_leg{k}', (sx * 0.13, sy * 0.22, 0.3), 0.007, 0.6, rgba=CHROME)
          for k, (sx, sy) in enumerate(((1, 1), (1, -1), (-1, 1), (-1, -1)))]))
-    # the robot's white test table (the owner's top-down photos: ~0.5 m square, white top on white legs, light wood
-    # floor around it) in the open middle of the living room, approached from the hall side (south)
-    tl, tw, th = TEST_TABLE
-    F.append(table('test_table', (TEST_TABLE_AT[0], TEST_TABLE_AT[1], 0), 0.0, tl, tw, th, top_rgba=WHITE, leg=WHITE,
-                   leg_r=0.015, type_='test table'))
-    spot('test table', 'living room', TEST_TABLE_AT, -math.pi / 2, tw, tl, th + 0.003, body='test_table')
+    # the side table is a place to put things on (not only an obstacle): approached from the open middle of the
+    # living room (east), its narrow end facing the robot (0.6 m deep along x, 0.38 m wide)
+    spot('side table', 'living room', (-1.38, 1.85), 0.0, 0.6, 0.38, 0.615, body='side_table')
+    # the robot's white test table (~0.5 m square) is no longer in the base house (owner, 2026-10-09: the middle of
+    # the living room stays free); scenes that need it add catalog 'test table' at TEST_TABLE_AT
     F.append(body('tv_stand', (1.67, 2.6, 0), -math.pi / 2, [
         box('tv_stand_box', (0, 0, 0.2), (0.8, 0.18, 0.2), rgba=OFFWHITE),
         box('tv_stand_gap', (0, -0.181, 0.2), (0.78, 0.001, 0.005), rgba=(0.8, 0.8, 0.8, 1), extra=VIS),
@@ -675,8 +696,9 @@ def furniture(cab_style=None, site=None):
         xml, sp = CATALOG[it['type']]['make'](it['id'], (x, y, 0.0), a)
         F.append(xml)
         _register(it['id'], (x, y, 0.0), a, it['type'])
-        if sp:
-            spot(it['id'], room_of(x, y), (x, y), a + sp['front'], sp['depth'], sp['width'], sp['height'])
+        if sp:                                             # mode: the scene's, else the piece's (floor / high: front)
+            spot(it['id'], room_of(x, y), (x, y), a + sp['front'], sp['depth'], sp['width'], sp['height'],
+                 mode=it.get('mode') or sp.get('mode', 'left'))
     return ''.join(F), spots
 
 

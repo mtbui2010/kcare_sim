@@ -234,3 +234,10 @@ furniture:
     yaw_deg: 9.3
   dchair0:
     remove: true
+add:
+- id: test table
+  type: test table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0

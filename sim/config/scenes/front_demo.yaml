@@ -1,0 +1,26 @@
+# Front-mode pick / place demo (2026-10-11): three heights - sofa seat 0.44, desk 0.72, high shelf 1.31.
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos: [0.4, 2.0]
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: mug
+  ycb: 025_mug
+  surface: high shelf@living room
+  offset: [0.0, -0.06]
+  yaw_deg: 300
+- name: apple
+  ycb: 013_apple
+  surface: sofa@living room
+  offset: [0.2, -0.18]
+  yaw_deg: 0
+- name: tomato soup can
+  ycb: 005_tomato_soup_can
+  surface: desk@study room
+  offset: [0.0, -0.2]
+  yaw_deg: 0

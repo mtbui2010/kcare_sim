@@ -1,0 +1,22 @@
+# pnp demo (2026-10-14): pick an object and put it into a bowl / onto a plate at the same spot (kcare pnp skill).
+objects:
+- name: rubiks cube
+  ycb: 077_rubiks_cube
+  surface: desk@study room
+  offset: [0.18, -0.18]
+  yaw_deg: 0
+- name: bowl
+  ycb: 024_bowl
+  surface: desk@study room
+  offset: [-0.15, -0.15]
+  yaw_deg: 0
+- name: banana
+  ycb: 011_banana
+  surface: counter@kitchen
+  offset: [0.15, -0.15]
+  yaw_deg: 0
+- name: red plate
+  ycb: 029_plate
+  surface: counter@kitchen
+  offset: [-0.18, -0.12]
+  yaw_deg: 0

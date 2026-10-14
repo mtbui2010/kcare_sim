@@ -32,6 +32,7 @@ HOST = '127.0.0.1'
 SPOKEN = {
     'sofa@living room': ['소파', 'ghế sofa'],
     'test table@living room': ['거실 테이블', 'bàn phòng khách'],
+    'side table@living room': ['사이드 테이블', '소파 옆 테이블', 'bàn phụ'],
     'desk@study room': ['책상', 'bàn làm việc'],
     'drawer@kitchen': ['부엌 서랍', 'ngăn kéo bếp'],
     'counter@kitchen': ['조리대', 'bàn bếp'],

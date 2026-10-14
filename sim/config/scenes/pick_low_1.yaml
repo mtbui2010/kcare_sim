@@ -1,0 +1,33 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: coffee table
+  type: coffee table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: sponge
+  ycb: 026_sponge
+  surface: coffee table@living room
+  offset:
+  - 0.068
+  - -0.156
+  yaw_deg: 131
+- name: phone
+  ycb: r13_phone
+  surface: coffee table@living room
+  offset:
+  - 0.273
+  - -0.151
+  yaw_deg: 332
+- name: peach
+  ycb: 015_peach
+  surface: coffee table@living room
+  offset:
+  - -0.081
+  - -0.152
+  yaw_deg: 164

@@ -282,3 +282,10 @@ furniture:
     - -4.268
     - 1.006
     yaw_deg: 3.8
+add:
+- id: test table
+  type: test table
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0

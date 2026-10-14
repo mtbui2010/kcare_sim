@@ -1,0 +1,11 @@
+# PICK phase A, "reach to view" (expert_pick_approach.py): from kcare's movej::give ready pose of the mode, bring the
+# wrist camera 0.10-0.15 m from the target, centred, with arm + lift + a small forward base shift. fine_move does the
+# grasp on the robot. One model covers the side modes; the mode is in the state (one-hot) and set by ENV, not chosen.
+expert: pick_approach
+rand_config: /sim/config/rand_pick.yaml
+# scenes per band in rand_pick.yaml (base house; pick_floor_0 / pick_low_0 / pick_high_0)
+camera_profile: home_v1
+# modes / bands / start poses per band: rand_pick.yaml (front ~50 %, left / right ~25 %)
+head_tilt: -50                       # moveh::down on the real robot (HEAD_CONFIGS ry_range floor -50)
+head_pan_offset: -0.12               # same URDF head-zero calibration as the drawer task
+mode: left                           # unused by this expert (gen_dataset reads it for the drawer path only)

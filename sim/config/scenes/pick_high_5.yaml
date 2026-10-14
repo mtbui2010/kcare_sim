@@ -1,0 +1,40 @@
+furniture:
+  test_table:
+    remove: true
+add:
+- id: high shelf
+  type: high shelf
+  pos:
+  - 0.4
+  - 2.0
+  yaw_deg: 0.0
+  mode: front
+objects:
+- name: tomato soup can
+  ycb: 005_tomato_soup_can
+  surface: high shelf@living room
+  offset:
+  - -0.049
+  - -0.083
+  yaw_deg: 105
+- name: small water bottle
+  ycb: r19_small_water
+  surface: high shelf@living room
+  offset:
+  - -0.243
+  - -0.071
+  yaw_deg: 166
+- name: gelatin box
+  ycb: 009_gelatin_box
+  surface: high shelf@living room
+  offset:
+  - 0.281
+  - -0.045
+  yaw_deg: 186
+- name: red cup
+  ycb: 065-a_cups
+  surface: high shelf@living room
+  offset:
+  - 0.086
+  - -0.047
+  yaw_deg: 218

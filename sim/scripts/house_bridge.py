@@ -856,10 +856,30 @@ class Bridge(Node):
             self.get_logger().info(f'arm_servo stream: {dict(zip(msg.name, [round(v, 3) for v in msg.position]))}')
         with self.sim.lock:
             for n, v in zip(msg.name, msg.position):
-                if n in self.sim.aid:
+                if n == 'base_forward':
+                    self._servo_base(float(v), now)
+                elif n in self.sim.aid:
                     self.sim.traj.pop(n, None)
                     lo, hi = self.sim.m.actuator_ctrlrange[self.sim.aid[n]]
                     self.sim.d.ctrl[self.sim.aid[n]] = float(np.clip(v, lo, hi))
+
+    SERVO_BASE_MAX = 0.2                                     # pick / place policies may nudge the base +-0.2 m
+
+    def _servo_base(self, d, now):
+        """'base_forward' in an arm_servo stream: the base offset along its heading from where it stood when the
+        stream started (a gap > 1 s starts a new anchor). Clamped to +-SERVO_BASE_MAX, driven with the base ramp,
+        refused into obstacles like shift_pose. Caller holds the sim lock."""
+        if now - getattr(self, '_servo_base_t', 0.0) > 1.0 or getattr(self, '_servo_anchor', None) is None:
+            self._servo_anchor = tuple(self.sim.base)
+            self._servo_check = self._clear_from(self._servo_anchor[0], self._servo_anchor[1])
+        self._servo_base_t = now
+        x0, y0, a0 = self._servo_anchor
+        d = float(np.clip(d, -self.SERVO_BASE_MAX, self.SERVO_BASE_MAX))
+        gx, gy = x0 + d * math.cos(a0), y0 + d * math.sin(a0)
+        if math.hypot(gx - self.sim.base[0], gy - self.sim.base[1]) > 0.005:
+            self.sim.base_ok = True
+            self.sim.base_done.clear()
+            self.sim.base_goal = ('drive', gx, gy, 0.15, self._servo_check)
 
     def pub_state(self):
         t = time.time()

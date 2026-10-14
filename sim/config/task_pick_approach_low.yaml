@@ -1,0 +1,9 @@
+# PICK phase A near the floor / on a low table, FRONT mode (worker A's collision-aware re-sweep v2: front top-down is the
+# safest there; the arm hides the target in the head view during the approach, so the head must see it at the start pose
+# and the approach relies on the wrist camera). Separate from task_pick_approach.yaml (tabletop left / right).
+expert: pick_approach
+rand_config: /sim/config/rand_pick_low.yaml
+camera_profile: home_v1
+head_pan_offset: -0.12
+min_head_points: 4                   # the head sees the target at the start pose (before the arm comes in)
+mode: front                          # unused by this expert
