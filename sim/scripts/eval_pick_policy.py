@@ -56,6 +56,7 @@ def run_policy(m, d, task, cfg, rand, info, client, a, cams, rng, frames=None):
     if ctx is None:
         return dict(success=False, skipped=True, reason=why)
     q0 = ctx['q0']
+    ctx['tcp_bid'] = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'tool_tcp_link')
     r_head, r_wrist = mujoco.Renderer(m, 720, 1280), mujoco.Renderer(m, IMG_WH[1], IMG_WH[0])
     client.reset()
     lift_cmd, base_cmd = q0['lift_joint'], 0.0
@@ -78,11 +79,15 @@ def run_policy(m, d, task, cfg, rand, info, client, a, cams, rng, frames=None):
             lift_cmd += float(np.clip(np.clip(act[8], *LIFT_LIM) - lift_cmd, -LIFT_SPEED / ex.HZ, LIFT_SPEED / ex.HZ))
             base_cmd += float(np.clip(np.clip(act[9], -BASE_MAX, BASE_MAX) - base_cmd, -BASE_SPEED / ex.HZ, BASE_SPEED / ex.HZ))
             cmd = np.concatenate([x, [grip, lift_cmd, base_cmd]])
+            if ctx.get('grasp'):              # v3: the expert's grasp relaxations (finger ends on the surface, no furniture
+                tcp = d.xpos[ctx['tcp_bid']]  # margin) apply once the finger ends are near the target, as in its grasp phases
+                ctx['grasping'] = ctx.get('grasp_q') is not None or float(np.linalg.norm(tcp - ex.obj_centre(m, d, ctx['tgt_body']))) < 0.15
             ex.apply_step(m, d, ctx, cfg, x, grip, lift_cmd, base_cmd)
             hist.append(cmd); last = cmd
             if step >= 2 * ex.HZ and len(hist) > 15:      # the command has been still for 0.5 s: the policy is done
                 w = np.array(hist[-15:])
-                if (np.ptp(w[:, :7], 0).max() < 0.003 and np.ptp(w[:, 8]) < 0.001 and np.ptp(w[:, 9]) < 0.001):
+                if (np.ptp(w[:, :7], 0).max() < 0.003 and np.ptp(w[:, 8]) < 0.001 and np.ptp(w[:, 9]) < 0.001
+                        and (not ctx.get('grasp') or w[-1, 7] < 0.02)):   # v3: done = closed and still, not the look pause
                     break
     finally:
         r_head.close(); r_wrist.close()
@@ -131,7 +136,7 @@ def main():
     ap.add_argument('--mock', action='store_true', help='a hold-still stand-in policy (tests the policy path)')
     ap.add_argument('--n', type=int, default=50)
     ap.add_argument('--seed0', type=int, default=10 ** 9, help='held out: the generator uses small seeds')
-    ap.add_argument('--timeout', type=float, default=12.0)
+    ap.add_argument('--timeout', type=float, default=None, help='s (default: the task eval_timeout, else 12)')
     ap.add_argument('--execute', type=int, default=0, help='actions executed per chunk (0 = the model n_action_steps)')
     ap.add_argument('--task', default='task_pick_approach.yaml')
     ap.add_argument('--rand-config', default='', help='config/ file (default: the task rand_config)')
@@ -142,6 +147,8 @@ def main():
 
     cfg = yaml.safe_load(open(f'{SIM}/config/mjcf.yaml'))
     task = yaml.safe_load(open(f'{SIM}/config/{a.task}'))
+    if a.timeout is None:
+        a.timeout = float(task.get('eval_timeout', 12.0))
     rcfg = yaml.safe_load(open(f'{SIM}/config/{a.rand_config}' if a.rand_config else task['rand_config']))
     cams = None
     if not a.no_camera_model:

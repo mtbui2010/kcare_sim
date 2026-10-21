@@ -217,6 +217,14 @@ def sample(rng, cfg, task):
         lying = bool(tall and rng.random() < float(cfg['objects'].get('lying_prob', 0.3)))
         rr = 0.5 * math.hypot(ext[0], ext[2]) if lying else r
         h_obj = ext[1] if lying else ext[2]                   # lying: Rx(90) puts the mesh's y extent up
+        narrow = min(ext[0], ext[2]) if lying else min(ext[0], ext[1])          # top-down grasp width
+        smin = cfg['objects'].get('target_standing_min_h')        # previews: only standing targets this tall
+        if k == 0 and smin is not None and (lying or ext[2] < float(smin)):
+            return sample(rng, cfg, task)
+        if k == 0 and not lying and ext[2] > float(cfg['objects'].get('target_max_h', 9.0)):
+            return sample(rng, cfg, task)                     # v3: tall standing ones are grasped from the side, not here
+        if k == 0 and narrow > float(cfg['objects'].get('target_max_width', 9.0)):
+            return sample(rng, cfg, task)                     # v3: the target must fit between the fingers
         if h_obj > bc.get('max_obj_h', 9.0) or h_obj < bc.get('min_obj_h', 0.0):
             if k == 0:
                 return sample(rng, cfg, task)                 # the target must fit the band (e.g. >= 5 cm near the floor)
@@ -283,6 +291,7 @@ def _human(rng, hc):
     return dict(speed=_u(rng, hc.get('speed', [1.0, 1.0])),
                 hesitate=_u(rng, hc.get('hesitate_s', [0.2, 0.6])) if rng.random() < float(hc.get('hesitate_prob', 0.0)) else 0.0,
                 settle=_u(rng, hc.get('settle_s', [0.6, 0.6])),
+                look=_u(rng, hc.get('look_s', [0.4, 0.4])),
                 noise=dict(arm_deg=_u(rng, hc['noise_arm_deg']), lift=_u(rng, hc['noise_lift_m']),
                            base=_u(rng, hc['noise_base_m']), tau=_u(rng, hc['noise_tau_s']),
                            seed=int(rng.integers(2 ** 31))) if noisy else None,
@@ -360,8 +369,12 @@ def episode_model(task, rand, wid=0, welds=False):
         path = f'{SIM}/mjcf/_pick_house_{os.getpid()}_w{wid}{"_weld" if welds else ""}.xml'
         try:
             open(path, 'w').write(xml)
-            ent = _MODEL[key] = dict(m=mujoco.MjModel.from_xml_path(path), version=rand['pool_version'],
-                                     scales=rand.get('pool_scale'))
+            mm = mujoco.MjModel.from_xml_path(path)
+            # znear / zfar are fractions of the model extent, and the pool parked at x = 40 m makes that ~65 m: the
+            # near plane was 13 cm, so the wrist camera cut through an object it was grasping. Fixed metres instead.
+            mm.vis.map.znear = 0.005 / mm.stat.extent
+            mm.vis.map.zfar = 40.0 / mm.stat.extent
+            ent = _MODEL[key] = dict(m=mm, version=rand['pool_version'], scales=rand.get('pool_scale'))
         finally:
             if os.path.exists(path):
                 os.remove(path)
@@ -390,7 +403,7 @@ def episode_model(task, rand, wid=0, welds=False):
             q = qz
             z = o['top'] - lo[2] + 0.002
         d.qpos[a:a + 7] = [o['x'], o['y'], z, *q]
-        info_obj[o['name']] = dict(body=f'obj_{tag}', ycb=o['id'], height=float(hi[2] - lo[2]))
+        info_obj[o['name']] = dict(body=f'obj_{tag}', ycb=o['id'], height=float(hi[2] - lo[2]), lying=bool(o['lying']))
     mujoco.mj_forward(m, d)
     rb = rand['robot']
     view_dir = (1.0, 0.0, 0.0) if rand['mode'] == 'front' else (0.0, SIDE[rand['mode']], 0.0)

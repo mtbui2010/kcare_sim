@@ -50,6 +50,8 @@ PRE_PICK_FLOOR = {'front': [0.0, 64.64, 0.0, 79.37, -180.0, -14.72, 0.0],
 PRE_PICK_HIGH = {'front': [0.0, -13.39, 0.0, 6.35, -180.0, 70.27, 0.0],
                  'left': [-44.63, 10.06, -40.33, 31.39, -174.03, 65.8, 4.06],
                  'right': [45.28, 9.96, 39.7, 31.39, -185.93, 65.81, -3.93]}
+APPROACH_LYING = {'right': [89.6, -26.8, 0.3, 28.4, 0.9, 55, -179.9], 'left': [86, 23.3, -182.5, 37, -0.2, 60.4, -185.5],
+                  'front': [0.0, -4.91, 0.0, 48.86, -180.0, -53.77, 0.0]}        # kcare's top-down ready pose
 POSES = dict(give=GIVE, approach_standing=APPROACH_STANDING, pre_pick_floor=PRE_PICK_FLOOR, pre_pick_high=PRE_PICK_HIGH)
 HEAD_RZ = {'front': 0, 'left': -70, 'right': 70}
 LIFT = dict(range=(0.56, 1.1), mobile_height=0.43, home={'front': 0.6, 'left': 0.8, 'right': 0.8})
@@ -71,13 +73,13 @@ def minjerk(s):
 class CamIK:
     """7-DoF IK for the wrist camera frame (position + optical z + y axes) with lift / base fixed."""
 
-    def __init__(self, ref, q_fixed):
-        self.ref, self.q = ref, dict(q_fixed)
+    def __init__(self, ref, q_fixed, link=CAM_LINK):
+        self.ref, self.q, self.link = ref, dict(q_fixed), link
         self.lo = np.array([max(ref.joints[j]['limit'][0], -2 * np.pi) for j in ARM])
         self.hi = np.array([min(ref.joints[j]['limit'][1], 2 * np.pi) for j in ARM])
 
-    def T(self, x, link=CAM_LINK):
-        return self.ref.fk(dict(self.q, **dict(zip(ARM, x))))[link]
+    def T(self, x, link=None):
+        return self.ref.fk(dict(self.q, **dict(zip(ARM, x))))[link or self.link]
 
     def solve(self, R, p, seeds):
         best = None
@@ -351,6 +353,194 @@ def path_bad(m, scratch, q, legs, rb, csets, cstart, robot, env_geoms, ignore=()
     return False
 
 
+# ── v3: grasp + lift (task 'grasp: true') ─────────────────────────────────────
+# top-down grasp: tool z down, the fingers (closing along tool y, TCP = finger ends) across the object's narrow
+# horizontal axis; pre-grasp pre_dz above, descend, close (the sim's grasp assist welds the object once both tips
+# push >= min_force, as house_bridge does), lift lift_dz, hold still.
+GRASP = dict(pre_dz=0.10, lift_dz=0.10, open_margin=0.02, max_width=0.088, depth=0.035, tip_clear=0.015, tip_clear_flat=0.006, flat_h=0.03,
+             t_pre=1.3, t_down=1.2, t_close=0.8, t_lift=1.2, min_force=10.0)
+TCP_LINK = 'tool_tcp_link'
+# side grasp (standing objects >= side_min_h): approach horizontally from the arm's side, tool tilted side_tilt_deg
+# down (kcare's approach_standing), fingers closing horizontally, TCP side_reach past the object's axis so it sits
+# between the finger pads, at side_h_frac of its height (below a cup's rim); lift straight up, gripper kept level.
+SIDEG = dict(min_h=0.07, tilt_deg=15.0, back=0.10, h_frac=0.45, h_min=0.035, rim=0.02, reach=0.015)
+
+
+def footprint(m, d, body):
+    """(centre xy, narrow unit dir xy, narrow width, long width, top z, bottom z) of a body's geoms (world)."""
+    bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, body)
+    sg = np.array([[sx, sy, sz] for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)], float)
+    pts = []
+    for g in range(m.ngeom):
+        if m.geom_bodyid[g] != bid:
+            continue
+        mid = m.geom_dataid[g]
+        if m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH and mid >= 0:     # the real vertices: a rotated box over-
+            v = m.mesh_vert[m.mesh_vertadr[mid]:m.mesh_vertadr[mid] + m.mesh_vertnum[mid]]   # states round things
+        else:
+            v = sg * m.geom_aabb[g][3:] + m.geom_aabb[g][:3]
+        pts.append(v @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g])
+    pts = np.concatenate(pts)
+    xy = pts[:, :2]; c = 0.5 * (xy.min(0) + xy.max(0))
+    w_, v_ = np.linalg.eigh(np.cov((xy - xy.mean(0)).T))
+    n, l_ = v_[:, 0], v_[:, 1]
+    return c, n, float(np.ptp(xy @ n)), float(np.ptp(xy @ l_)), float(pts[:, 2].max()), float(pts[:, 2].min())
+
+
+def grasp_check(m, scratch, q, legs, rb, csets, cstart, robot, env_geoms, tgt_geom, self_ok=(), n=6):
+    """path_bad for the grasp legs: the fingers may touch the target, and the furniture margin is not checked
+    (the finger ends are a centimetre above the surface by design); contacts with anything else, self contacts and
+    the head / base margins still count."""
+    ax, ay = base_adr(m)
+    for xa, xb, la, lb, ba, bb in legs:
+        for i in range(1, n + 1):
+            s_ = minjerk(i / n)
+            cs.set_q(m, scratch, dict(q, **dict(zip(ARM, xa + (xb - xa) * s_)), lift_joint=la + (lb - la) * s_),
+                     {'gripper': cs_cfg_gripper()})
+            bs = ba + (bb - ba) * s_
+            scratch.qpos[ax], scratch.qpos[ay] = rb[0] + bs * math.cos(rb[2]), rb[1] + bs * math.sin(rb[2])
+            mujoco.mj_forward(m, scratch)
+            bad = [h for h in bad_contacts(m, scratch, robot, env_geoms)
+                   if h[1] != tgt_geom and not ('finger_tip' in h[0] and not h[1].startswith('obj_'))] + \
+                  [h for h in self_contacts(m, scratch, robot) if h not in self_ok]
+            if bad:
+                return f'contact {bad[0]}'
+            cl = clearance(m, scratch, csets)
+            bad = [c_ for c_ in clear_ok(cl, cstart) if c_ != 'furniture']
+            if bad:
+                return f'clearance {bad[0]} {cl[bad[0]]:.3f}'
+    return ''
+
+
+def plan_grasp(m, d, ref, q0, p, info, scratch, robot, env_geoms, csets, cstart, self_ok=()):
+    """Joint targets for pre-grasp / (mid) / grasp / lifted, the lift, the opening width, or (None, reason).
+    Style: a standing object >= SIDEG['min_h'] tall is grasped from the side (horizontal fingers, tool tilted like
+    kcare's approach_standing), anything else from the top."""
+    tgt = info['objects'][info['target']]
+    c_xy, n_xy, w_n, w_l, top, bot = footprint(m, d, tgt['body'])
+    h = top - bot
+    rb = info.get('robot', (0.0, 0.0, 0.0))
+    cy, sy = math.cos(rb[2]), math.sin(rb[2])
+    to_b = lambda v: np.array([cy * v[0] + sy * v[1], -sy * v[0] + cy * v[1], 0.0])      # world dir -> base frame
+    standing = not info['objects'][info['target']].get('lying', False) and h >= SIDEG['min_h']
+    shift = np.array([p['base'], 0.0, 0.0])
+    mode = info.get('mode') or ('left' if info.get('side', 0) < 0 else 'right')
+    down = np.array([0, 0, -1.0])
+    cands = []                                   # (R, [waypoints, base frame], open width, grasp width)
+    if standing:                                 # side grasp
+        c0 = to_base(np.array([c_xy[0], c_xy[1], 0.0]), rb)
+        sh = ref.fk(dict(q0))['link1'][:3, 3]    # approach along the horizontal line shoulder -> object
+        a = np.array([c0[0] - p['base'] - sh[0], c0[1] - sh[1], 0.0]); a /= np.linalg.norm(a)
+        y_ = np.array([-a[1], a[0], 0.0])
+        # the width the fingers close across: the object's extent across the approach (mesh vertices)
+        bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, tgt['body'])
+        vs = []
+        for g in range(m.ngeom):
+            if m.geom_bodyid[g] == bid and m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH and m.geom_dataid[g] >= 0:
+                mid_ = m.geom_dataid[g]
+                v = m.mesh_vert[m.mesh_vertadr[mid_]:m.mesh_vertadr[mid_] + m.mesh_vertnum[mid_]]
+                vs.append(v @ d.geom_xmat[g].reshape(3, 3).T + d.geom_xpos[g])
+        vw = np.concatenate(vs) if vs else None
+        yw = np.array([cy * y_[0] - sy * y_[1], sy * y_[0] + cy * y_[1]])                  # base -> world
+        width = float(np.ptp(vw[:, :2] @ yw)) if vw is not None else w_n
+        if width > GRASP['max_width']:
+            return None, f'side grasp: target too wide across the approach ({width:.3f} m)'
+        z_g = bot + min(max(SIDEG['h_frac'] * h, SIDEG['h_min']), h - SIDEG['rim'])
+        c = to_base(np.array([c_xy[0], c_xy[1], z_g]), rb) + a * SIDEG['reach']
+        t = math.radians(SIDEG['tilt_deg'])
+        z = math.cos(t) * a + math.sin(t) * down
+        for sgn in (1.0, -1.0):
+            y = sgn * y_; R = np.stack([np.cross(y, z), y, z], 1)
+            wps = [c - z * SIDEG['back'], c - z * SIDEG['back'] * 0.5, c, c + np.array([0, 0, GRASP['lift_dz']])]
+            cands.append((R, wps))
+        seeds0 = [p['goal'], np.radians(APPROACH_STANDING.get(mode, APPROACH_STANDING['left']))]
+        style = 'side'
+    else:                                        # top-down grasp
+        width = w_n
+        if width > GRASP['max_width']:
+            return None, f'target too wide for the gripper ({width:.3f} m)'
+        clear = GRASP['tip_clear_flat'] if h < GRASP['flat_h'] else GRASP['tip_clear']   # a fork: fingers almost on the table
+        z_g = max(top - min(GRASP['depth'], 0.5 * h), bot + clear)
+        c = to_base(np.array([c_xy[0], c_xy[1], z_g]), rb)
+        nb = to_b(n_xy)
+        for sgn in (1.0, -1.0):                  # the fingers are symmetric: two wrist turns reach the same grasp
+            y = sgn * nb; R = np.stack([np.cross(y, down), y, down], 1)
+            wps = [c + np.array([0, 0, dz]) for dz in (GRASP['pre_dz'], GRASP['pre_dz'] * 0.5, 0.0, GRASP['lift_dz'])]
+            cands.append((R, wps))
+        seeds0 = [p['goal'], np.radians(APPROACH_LYING.get(mode, APPROACH_LYING['left']))]
+        style = 'top'
+    seeds = list(seeds0)
+    for s0 in seeds0:                            # the wrist (joint7) turned half a turn either way
+        for t_ in (math.pi, -math.pi):
+            s1 = np.array(s0, float).copy(); s1[6] += t_; seeds.append(s1)
+    B, why = p['base'], f'no IK for the {style} grasp'
+    lo, hi = LIFT['range'][0] - LIFT['mobile_height'], LIFT['range'][1] - LIFT['mobile_height']
+    for dl in (0.0, 0.1, 0.2, -0.1):              # the view's lift first; a higher one helps far top-down reaches
+        L = float(np.clip(p['lift'] + dl, lo, hi))
+        q = dict(q0, lift_joint=L)
+        ik = CamIK(ref, q, link=TCP_LINK)
+        best = None
+        for R, wps in cands:
+            for seed0 in seeds:
+                sols, seed, ok = [], seed0, True
+                for w_ in wps:
+                    sol = ik.solve(R if w_ is not wps[-1] or style == 'top' else R, w_ - shift, [seed])
+                    if sol is None or sol[1] > EXPERT['ik_tol']:
+                        ok = False; break
+                    sols.append(sol[0]); seed = sol[0]
+                if not ok:
+                    continue
+                cost = float(np.max(np.abs(sols[0] - p['goal'])))
+                if best is None or cost < best[0]:
+                    best = (cost, sols)
+        if best is None:
+            continue
+        pre, mid, grasp, up = best[1]
+        legs = [(p['goal'], pre, p['lift'], L, B, B), (pre, mid, L, L, B, B), (mid, grasp, L, L, B, B),
+                (grasp, up, L, L, B, B)]
+        bad = grasp_check(m, scratch, q, legs, rb, csets, cstart, robot, env_geoms, tgt['body'], self_ok)
+        if bad:
+            why = f'{style} grasp path collides: {bad}'
+            continue
+        return dict(pre=pre, mid=mid, grasp=grasp, up=up, lift=L, open=min(0.1, width + GRASP['open_margin']),
+                    width=width, z_g=z_g, style=style), ''
+    return None, why
+
+
+def grasp_assist(m, d, ctx, grip_cmd):
+    """house_bridge's grasp assist: weld the target to the gripper once both finger tips push it with >= min_force
+    while closing; let go when the command opens past the width it closed to. Returns the gripper command to use
+    (held at the closed width while welded, so the fingers do not fight the weld)."""
+    e = ctx.get('weld')
+    if e is None:
+        return grip_cmd
+    width = cs.get_q(m, d, 'virtual_gripper_joint')
+    if ctx.get('grasp_q') is not None:
+        if grip_cmd > ctx['grasp_q'] + 0.004:
+            d.eq_active[e] = 0; ctx['grasp_q'] = None
+            return grip_cmd
+        return ctx['grasp_q']
+    if grip_cmd > width - 0.002:
+        return grip_cmd
+    force, f6 = {'L': 0.0, 'R': 0.0}, np.zeros(6)
+    tb = ctx['tgt_bid']
+    for i in range(d.ncon):
+        c_ = d.contact[i]
+        b1, b2 = int(m.geom_bodyid[c_.geom1]), int(m.geom_bodyid[c_.geom2])
+        for t_, o in ((b1, b2), (b2, b1)):
+            if t_ in ctx['tips'] and o == tb:
+                mujoco.mj_contactForce(m, d, i, f6); force[ctx['tips'][t_]] += float(f6[0])
+    if force['L'] >= GRASP['min_force'] and force['R'] >= GRASP['min_force']:
+        gb = ctx['gbody']
+        rel = d.xmat[gb].reshape(3, 3).T @ (d.xpos[tb] - d.xpos[gb])
+        qi = np.zeros(4); mujoco.mju_negQuat(qi, d.xquat[gb])
+        qr = np.zeros(4); mujoco.mju_mulQuat(qr, qi, d.xquat[tb])
+        m.eq_data[e][:3] = 0.0; m.eq_data[e][3:6] = rel; m.eq_data[e][6:10] = qr; m.eq_data[e][10] = 1.0
+        d.eq_active[e] = 1; ctx['grasp_q'] = width
+        return width
+    return grip_cmd
+
+
 _CFG_GRIPPER = {}
 
 
@@ -412,7 +602,23 @@ def setup(m, d, task, cfg, rand, info):
     csets = clearance_sets(m, d, robot, info.get('robot', (0, 0, 0)))
     cstart = clearance(m, d, csets)
     base0 = np.array([d.qpos[ja['base_x']], d.qpos[ja['base_y']], d.qpos[ja['base_yaw']]])
-    return dict(mode=mode, ref=ref, q0=q0, n_sub=n_sub, ja=ja, jv=jv, robot=robot, env_geoms=env_geoms,
+    gx = {}
+    if task.get('grasp'):
+        tag = tgt_body[len('obj_'):]
+        e = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_EQUALITY, f'grasp_{tag}')
+        tips = {}
+        for s_, root in (('L', 'left_finger_tip'), ('R', 'right_finger_tip')):
+            r0 = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, root)
+            for b in range(m.nbody):
+                p_ = b
+                while p_ > 0 and p_ != r0:
+                    p_ = m.body_parentid[p_]
+                if p_ == r0:
+                    tips[b] = s_
+        gx = dict(grasp=True, weld=e if e >= 0 else None, grasp_q=None, tips=tips, grasping=False,
+                  gbody=mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, 'gripper_body_link'),
+                  tgt_bid=mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, tgt_body))
+    return dict(**gx, mode=mode, ref=ref, q0=q0, n_sub=n_sub, ja=ja, jv=jv, robot=robot, env_geoms=env_geoms,
                 start_hits=start_hits, start_self=start_self, csets=csets, cstart=cstart, tgt_body=tgt_body,
                 head_px=seen, base0=base0, hx=math.cos(base0[2]), hy=math.sin(base0[2]),
                 onehot=[1.0 if mode == k else 0.0 for k in MODES], c_start=obj_centre(m, d, tgt_body).copy(),
@@ -435,6 +641,8 @@ def state_vec(m, d, ctx):
 def apply_step(m, d, ctx, cfg, x, grip, lift, base):
     """One 30 Hz control step: arm / gripper / lift position targets, the base driven kinematically along its heading
     to `base` [m since the start], then the contact + clearance checks (clearance every 3rd step = 10 Hz)."""
+    if ctx.get('grasp'):
+        grip = grasp_assist(m, d, ctx, grip)
     q_cmd = dict(ctx['q0'], **dict(zip(ARM, x)), lift_joint=lift, virtual_gripper_joint=grip)
     d.ctrl[:] = cs.ctrl_from(m, q_cmd, cfg)
     ja, jv, b0, hx, hy, n_sub = ctx['ja'], ctx['jv'], ctx['base0'], ctx['hx'], ctx['hy'], ctx['n_sub']
@@ -445,18 +653,44 @@ def apply_step(m, d, ctx, cfg, x, grip, lift, base):
         d.qpos[ja['base_x']], d.qpos[ja['base_y']] = b0[0] + f * hx, b0[1] + f * hy
         d.qvel[jv['base_x']], d.qvel[jv['base_y']] = vb * hx, vb * hy
         mujoco.mj_step(m, d)
-    ctx['hits'] += [h_ for h_ in bad_contacts(m, d, ctx['robot'], ctx['env_geoms']) if h_ not in ctx['start_hits']]
+    tg = m.body(ctx['tgt_bid']).name if ctx.get('grasp') else None     # a grasp may touch its target, any time
+    ctx['hits'] += [h_ for h_ in bad_contacts(m, d, ctx['robot'], ctx['env_geoms'])
+                    if h_ not in ctx['start_hits'] and h_[1] != tg
+                    and not (ctx.get('grasping') and 'finger_tip' in h_[0] and not h_[1].startswith('obj_'))]   # finger ends may brush the surface, not other objects
     ctx['hits'] += [('self',) + h_ for h_ in self_contacts(m, d, ctx['robot']) if h_ not in ctx['start_self']]
     if ctx['k'] % 3 == 0:
         cl = clearance(m, d, ctx['csets'])
         for cat in clear_ok(cl, ctx['cstart']):
+            if ctx.get('grasping') and cat == 'furniture':     # finger ends 1 cm above the surface by design
+                continue
             ctx['hits'].append(('clearance', cat, round(cl[cat], 3)))
         for cat, v in cl.items():
             ctx['min_cl'][cat] = min(ctx['min_cl'][cat], v)
     ctx['k'] += 1
 
 
+def score_grasp(m, d, ctx, last_action):
+    """v3 success: the target lifted >= 5 cm and held (welded by the grasp assist), no other contact / margin
+    violation, the arm where it was commanded."""
+    for _k in range(int(0.3 / m.opt.timestep)):
+        mujoco.mj_step(m, d)
+    c_end = obj_centre(m, d, ctx['tgt_body'])
+    rise = float(c_end[2] - ctx['c_start'][2])
+    held = ctx.get('grasp_q') is not None
+    track = float(np.max(np.abs(np.array(last_action[:7]) - np.array([cs.get_q(m, d, j) for j in ARM]))))
+    hits = ctx['hits']
+    ok = bool(held and rise >= 0.05 and not hits and track < 0.05)
+    reason = '' if ok else (f'collision / clearance {sorted(set(map(str, hits)))[:2]}' if hits else
+                            'not grasped' if not held else f'lifted only {rise:.3f} m' if rise < 0.05 else
+                            f'arm blocked (tracking {track:.2f} rad)')
+    return dict(success=ok, reason=reason, metric=rise, lifted=rise, held=held, track_err=track,
+                clearance={k: round(v_, 3) for k, v_ in ctx['min_cl'].items()},
+                collisions=sorted(set(map(str, hits)))[:5], head_px=ctx['head_px'])
+
+
 def score(m, d, ctx, last_action):
+    if ctx.get('grasp'):
+        return score_grasp(m, d, ctx, last_action)
     """The success test: target centred in the wrist view, finger tips 0.08-0.18 m away, no contact / clearance
     violation, the target not moved (> 1 cm), the arm where it was commanded (< 0.05 rad)."""
     for _k in range(int(0.2 / m.opt.timestep)):
@@ -493,6 +727,13 @@ def run_episode(m, d, task, cfg, rand=None, info=None, render=None, log=print, *
         rec['reason'] = 'no reachable collision-free viewpoint'
         return rec
     ctx['c_start'] = p['c'].copy()
+    gp = None
+    if ctx.get('grasp'):
+        gp, why = plan_grasp(m, d, ctx['ref'], q0, p, info, scratch, ctx['robot'], ctx['env_geoms'], ctx['csets'],
+                             ctx['cstart'], self_ok=ctx['start_self'])
+        if gp is None:
+            rec['reason'] = why
+            return rec
     hu = rand.get('human') or {}
     sp = float(hu.get('speed', 1.0))                        # > 1 = faster
     x_start = np.array([q0[j] for j in ARM])
@@ -511,12 +752,28 @@ def run_episode(m, d, task, cfg, rand=None, info=None, render=None, log=print, *
         phases.append(('correct', EXPERT['correct'] / sp, last, p['goal'], L, L, B, B))
     else:
         phases.append(('descend', EXPERT['descend'] / sp, last, p['goal'], L, L, B, B))
-    phases.append(('settle', float(hu.get('settle', EXPERT['settle'])), p['goal'], p['goal'], L, L, B, B))
+    G0 = EXPERT['gripper']
+    if gp is None:
+        phases.append(('settle', float(hu.get('settle', EXPERT['settle'])), p['goal'], p['goal'], L, L, B, B))
+    else:                                                   # v3: look briefly, then grasp, lift and hold still
+        GR = GRASP
+        phases += [('look', float(hu.get('look', 0.4)), p['goal'], p['goal'], L, L, B, B),
+                   ('pregrasp', max(GR['t_pre'] / sp, abs(gp['lift'] - L) / EXPERT['lift_speed']), p['goal'], gp['pre'],
+                    L, gp['lift'], B, B, G0, gp['open'])]
+        L = gp['lift']
+        phases += [('down', GR['t_down'] * 0.5 / sp, gp['pre'], gp['mid'], L, L, B, B, gp['open'], gp['open']),
+                   ('down', GR['t_down'] * 0.5 / sp, gp['mid'], gp['grasp'], L, L, B, B, gp['open'], gp['open']),
+                   ('close', GR['t_close'], gp['grasp'], gp['grasp'], L, L, B, B, gp['open'], 0.0),
+                   ('lift', GR['t_lift'] / sp, gp['grasp'], gp['up'], L, L, B, B, 0.0, 0.0),
+                   ('settle', float(hu.get('settle', EXPERT['settle'])), gp['up'], gp['up'], L, L, B, B, 0.0, 0.0)]
+    phases = [ph if len(ph) == 10 else ph + (G0, G0) for ph in phases]
+    i_look = next(i for i, ph in enumerate(phases) if ph[0] in ('look', 'settle'))   # the view is reached here
     # noise on what is EXECUTED (smooth, Ornstein-Uhlenbeck), faded out over the final approach; the recorded action
     # stays the clean expert target, so the data shows how to get back on track from where the noise left the robot
     nz = hu.get('noise')
-    n_total = sum(max(1, int(round(T * HZ))) for _n, T, *_r in phases)
-    n_settle = max(1, int(round(phases[-1][1] * HZ))); n_final = max(1, int(round(phases[-2][1] * HZ)))
+    steps_of = [max(1, int(round(ph[1] * HZ))) for ph in phases]
+    n_total = sum(steps_of)
+    n_settle = sum(steps_of[i_look:]); n_final = steps_of[i_look - 1]      # noise: none from the view on
     noise = np.zeros((n_total, 9))
     if nz:
         nrng = np.random.default_rng(nz['seed'])
@@ -533,24 +790,27 @@ def run_episode(m, d, task, cfg, rand=None, info=None, render=None, log=print, *
         env[h0:h0 + n_in] *= np.linspace(0, 1, len(env[h0:h0 + n_in]))
         noise *= env[:, None]
     kk = 0
-    for name, T, xa, xb, la, lb, ba, bb in phases:
-        steps = max(1, int(round(T * HZ)))
+    for (name, T, xa, xb, la, lb, ba, bb, ga, gb), steps in zip(phases, steps_of):
+        ctx['grasping'] = name in ('pregrasp', 'down', 'close', 'lift', 'settle') and gp is not None
         for k in range(steps):
             s = minjerk((k + 1) / steps)
             x = xa + (xb - xa) * s
             lift = la + (lb - la) * s
             base = ba + (bb - ba) * s
+            grip = ga + (gb - ga) * s
             state = state_vec(m, d, ctx)
-            action = list(x) + [EXPERT['gripper'], lift, base]
+            action = list(x) + [grip, lift, base]
             rec['state'].append(state); rec['action'].append(action); rec['phase'].append(name)
             if render:
                 render(m, d, name, float('nan'), state=state, action=action)
             nk = noise[kk]; kk += 1
-            apply_step(m, d, ctx, cfg, x + nk[:7], EXPERT['gripper'], float(np.clip(lift + nk[7], 0.13, 0.67)),
+            apply_step(m, d, ctx, cfg, x + nk[:7], grip, float(np.clip(lift + nk[7], 0.13, 0.67)),
                        float(np.clip(base + nk[8], -EXPERT['base_max'], EXPERT['base_max'])))
     rec.update(score(m, d, ctx, rec['action'][-1]))
     rec['plan'] = dict(lift=p['lift'], base=p['base'], retry=p['miss'] is not None, misses=len(p.get('misses') or []),
-                       noise=bool(nz), speed=round(sp, 2), hesitate=round(float(hu.get('hesitate', 0.0)), 2))
+                       noise=bool(nz), speed=round(sp, 2), hesitate=round(float(hu.get('hesitate', 0.0)), 2),
+                       **({'grasp_width': round(gp['width'], 3), 'open': round(gp['open'], 3), 'style': gp['style']}
+                          if gp else {}))
     rec = {k: (np.array(v_) if k in ('action', 'state') else v_) for k, v_ in rec.items()}
     return rec
 
@@ -566,7 +826,7 @@ def build_scene(task, rand):
 
 
 def episode_model(task, rand, wid=0):
-    return pick_scene.episode_model(task, rand, wid)
+    return pick_scene.episode_model(task, rand, wid, welds=bool(task.get('grasp')))   # v3: grasp-assist welds
 
 
 def main():

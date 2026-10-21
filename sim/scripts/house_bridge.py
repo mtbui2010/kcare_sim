@@ -152,6 +152,7 @@ class Sim:
             if n.startswith('grasp_'):
                 self.grasp_eq[m.body(m.eq_obj2id[e]).name] = e
         self.grasp_on = None                                 # the object welded to the gripper now
+        self.grasp_extra = []                                # pair pinch (align_shoes): the other objects welded too
         self.tips = {}
         for s_, jn in (('L', 'left_finger_tip_joint'), ('R', 'right_finger_tip_joint')):
             b0 = m.jnt_bodyid[mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_JOINT, jn)]
@@ -181,9 +182,25 @@ class Sim:
         if n is not None:
             self.d.eq_active[self.grasp_eq[n]] = 0
             self.grasp_on = None
+        self._drop_extra()
         self.traj.pop('virtual_gripper_joint', None)
         self.d.ctrl[self.aid['virtual_gripper_joint']] = open_w
         return n
+
+    def _drop_extra(self):
+        for x in self.grasp_extra:
+            self.d.eq_active[self.grasp_eq[x]] = 0
+        self.grasp_extra = []
+
+    def _weld(self, n):
+        m, d = self.m, self.d
+        e = self.grasp_eq[n]; ob = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, n)
+        p1, q1 = d.xpos[self.gripper_body], d.xquat[self.gripper_body]
+        rel = d.xmat[self.gripper_body].reshape(3, 3).T @ (d.xpos[ob] - p1)
+        qi = np.zeros(4); mujoco.mju_negQuat(qi, q1)
+        qr = np.zeros(4); mujoco.mju_mulQuat(qr, qi, d.xquat[ob])
+        m.eq_data[e][:3] = 0.0; m.eq_data[e][3:6] = rel; m.eq_data[e][6:10] = qr; m.eq_data[e][10] = 1.0
+        return e
 
     def _grasp_assist(self, min_force=10.0):
         """Weld an object to the gripper while both finger tips squeeze it (>= min_force N each) and the gripper is
@@ -202,12 +219,15 @@ class Sim:
             if (tr is not None and tr[1] > self.grasp_q + 0.004) or (tr is None and d.ctrl[g] > self.grasp_q + 0.004):
                 d.eq_active[self.grasp_eq[self.grasp_on]] = 0            # commanded open: let go
                 self.grasp_on = None
+                self._drop_extra()
             else:
                 d.ctrl[g] = self.grasp_q                    # hold the width it closed to (no tug-of-war with the weld)
             return
         if d.ctrl[g] > self.q('virtual_gripper_joint') + 0.004:
             self.no_grasp = False                            # opening ends an injected no-grasp
             return
+        if d.ctrl[g] >= self.q('virtual_gripper_joint') - 0.002:   # not closing (idle open, or fully closed):
+            return                                           # pushing with the fingers is not a grasp (align_shoes 2026-10-21)
         force, f6 = {}, np.zeros(6)
         for i in range(d.ncon):
             c = d.contact[i]
@@ -218,6 +238,17 @@ class Sim:
                     if n in self.grasp_eq:
                         mujoco.mj_contactForce(m, d, i, f6)
                         k = (n, self.tips[t_]); force[k] = force.get(k, 0.0) + float(f6[0])
+        pair_l = [n for (n, s_) in force if s_ == 'L' and force[(n, s_)] >= min_force]
+        pair_r = [n for (n, s_) in force if s_ == 'R' and force[(n, s_)] >= min_force]
+        if pair_l and pair_r and not set(pair_l) & set(pair_r) and not (self.no_grasp or self.take_fault('no_grasp')):
+            # a pinch across two objects pressed together (a pair of shoes, a finger in each collar): weld both
+            nl, nr = pair_l[0], pair_r[0]
+            for x in (nl, nr):
+                d.eq_active[self._weld(x)] = 1
+            self.grasp_on, self.grasp_extra, self.grasp_q = nl, [nr], self.q('virtual_gripper_joint')
+            if tr is not None and tr[1] < self.grasp_q:
+                self.traj.pop('virtual_gripper_joint', None)
+            return
         for n in {k[0] for k in force}:
             if force.get((n, 'L'), 0) >= min_force and force.get((n, 'R'), 0) >= min_force:
                 e = self.grasp_eq[n]; ob = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, n)
@@ -283,6 +314,7 @@ class Sim:
             if self.grasp_on is not None:                    # let go of whatever the grasp assist holds
                 self.d.eq_active[self.grasp_eq[self.grasp_on]] = 0
                 self.grasp_on = None
+            self._drop_extra()
             for n, a, k, va, nv in self.scene_joints():
                 is_obj = n.startswith('obj_')
                 if not is_obj and what == 'objects':
@@ -348,7 +380,7 @@ class Sim:
                    'arm_busy': sorted(self.traj),
                    'lift': round(float(self.q('lift_joint')), 4),
                    'held': sorted({n for n, t in touch.items() if 'L' in ''.join(t) and 'R' in ''.join(t)}
-                                  | ({self.grasp_on} if self.grasp_on else set())),
+                                  | ({self.grasp_on} if self.grasp_on else set()) | set(self.grasp_extra)),
                    'assist': self.grasp_on,
                    'drawers': {m.joint(j).name: round(float(d.qpos[m.jnt_qposadr[j]]), 4) for j in range(m.njnt)
                                if m.joint(j).name.endswith('_slide')},

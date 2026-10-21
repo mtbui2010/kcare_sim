@@ -1,0 +1,12 @@
+# kcare pick / place range sweep (2026-10-19): one target at a time on the kitchen counter (scripts/range_sweep.py)
+objects:
+- name: soup can
+  ycb: 005_tomato_soup_can
+  surface: counter@kitchen
+  offset: [0.0, -0.15]
+  yaw_deg: 0
+- name: banana
+  ycb: 011_banana
+  surface: dining table@kitchen
+  offset: [0.0, -0.1]
+  yaw_deg: 0

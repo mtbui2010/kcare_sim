@@ -1,0 +1,107 @@
+# preview of the v3 side grasp only (standing targets >= 7 cm); not for training data
+# v3 (2026-10-14, owner): the whole pick — approach, top-down grasp, lift 10 cm, hold (task 'grasp: true').
+# v2's noise looked like a shaking arm (joint acc 20x the clean episodes, 4.8 deg wobble in 53 % of episodes):
+# now fewer, smaller and slower deviations, none from the view on. Otherwise as v2:
+# (v2: diverse, human-like data — noise, errors, retries, slightly different colours, more objects).
+# Same bands / spots / modes as rand_pick.yaml (left / right only); additions at the end.
+# Per-episode randomization for PICK phase A in the house (pick_scene.sample). Uniform [lo, hi]. The house itself
+# (furniture, floors, walls, lighting) is fixed; only the objects and the robot's exact stop vary.
+# 2026-10-09 owner: front mode makes the arm block the head camera and hit the robot's own body; until a collision-aware
+# re-sweep, only the tabletop band with the ENV left / right modes is generated. floor / low / high (front) are
+# prepared, weight 0.
+bands:
+  table:                          # the base house's tabletop spots (kcare ENV default_mode: left)
+    weight: 1.0
+    scene: ''
+    spots: {desk@study room: 1.0, counter@kitchen: 1.2, chest@bedroom: 0.8,
+            stool@bedroom: 0.6, side table@living room: 0.8, shelf@restroom: 0.5,
+            sofa@living room: 0.8, drawer@kitchen: 0.5}
+    # dropped for the side modes (30-episode test: 0/8 kitchen shelf, 0/3 dining table, 0/2 washer — the stop
+    # touches the wall / chairs or no viewpoint is reachable)
+    modes: {left: 0.6, right: 0.4}       # ENV default_mode left; right for mirrored stops (no front at tables)
+    start_pose: {left: give, right: give, front: approach_standing}
+    head_tilt: -50
+    view: {elev_deg: [50, 70], yaw_deg: [-20, 20]}
+    via: [0.12, 0.05]
+  floor:                          # worker B's floor mat (pick_floor_*): top-down, lift at its lowest (reach sweep)
+    weight: 0.0
+    scene: pick_floor_0
+    spots: {floor@living room: 1.0}
+    modes: {front: 1.0}
+    mode_overrides: {front: {standoff: [0.28, 0.34], target_x: [0.35, 0.55], comfort: [0.25, 0.55]}}
+    start_pose: {front: pre_pick_floor}
+    head_tilt: -50
+    view: {elev_deg: [68, 80], yaw_deg: [-15, 15]}
+    via: [0.12, 0.03]
+    lifts: [0.56]
+  low:                            # coffee table 0.42 m (pick_low_*)
+    weight: 0.0
+    scene: pick_low_0
+    spots: {coffee table@living room: 1.0}
+    modes: {front: 1.0}
+    start_pose: {front: approach_standing}
+    head_tilt: -50
+    view: {elev_deg: [55, 75], yaw_deg: [-20, 20]}
+    via: [0.12, 0.05]
+    lifts: [0.56, 0.6]
+  high:                           # high shelf, top board 1.31 m (pick_high_*): side view, fingers horizontal
+    weight: 0.0
+    scene: pick_high_0
+    spots: {high shelf@living room: 1.0}
+    modes: {front: 1.0}
+    mode_overrides: {front: {standoff: [0.36, 0.50], target_x: [0.45, 0.80], comfort: [0.3, 0.8]}}
+    start_pose: {front: pre_pick_high}
+    head_tilt: -10                # the board is about head height (HEAD_CONFIGS ry range -50 .. 10)
+    view: {elev_deg: [5, 25], yaw_deg: [-15, 15]}
+    via: [0.0, 0.12]              # come in from the front, not from above
+    lifts: [0.86, 0.75, 0.6, 1.0]
+    max_obj_h: 0.28
+modes:                            # defaults per mode (target x = along the heading in the base frame)
+  # v3: a top-down grasp reaches less than a view: target along the heading 0.05-0.50 m (kcare's pick drives the
+  # base so the target is at x 0.15-0.35), sideways standoff + depth 0.45-0.70 m (kcare's approach_lying y -0.64)
+  left:  &side {standoff: [0.45, 0.52], target_x: [0.05, 0.50], max_in: 0.18, comfort: [0.10, 0.45],
+                base_band: [[-0.12, 0.05], [0.50, 0.62]]}
+  right: *side
+  front: {standoff: [0.32, 0.45], target_x: [0.40, 0.75], target_y: [-0.25, 0.25], comfort: [0.25, 0.75]}
+robot:
+  yaw_jitter_deg: [-5, 5]         # the base does not stop exactly as planned
+  max_offset: 0.55                # how far along the front edge the stop may move from the spot centre
+  base_band_prob: 0.45            # targets the arm reaches only with the base shifted 0.1-0.2 m (kept share ~25-35%)
+objects:
+  n: [3, 8]                       # target + 2-7 distractors
+  pool: 28                        # objects in the model per worker (parked at x = 40 m)
+  pool_refresh: 6                 # new pool every N episodes
+  real_prob: 0.4                  # share of the owner's real objects (r##, graspable d##)
+  lying_prob: 0.3                 # tall objects tipped over
+  scale: [0.85, 1.15]             # one size per object per pool
+  target_max_width: 0.085         # v3: the target's narrow side fits the open gripper (0.1 m)
+  target_max_h: 0.28              # v3: standing targets up to 28 cm (>= 7 cm: side grasp, expert SIDEG)
+  target_standing_min_h: 0.07     # PREVIEW ONLY: side-grasp targets
+viewpoint:
+  dist: [0.10, 0.15]              # finger tips -> object centre [m] (the wrist camera is ~0.15 m further back)
+retry_prob: 0.25                  # first goes to a wrong viewpoint, then corrects
+retry_miss: 0.08
+retry_kinds: {side: 1.0, vertical: 0.7, near: 0.5, far: 0.6}
+retry_mag: [0.04, 0.10]
+retry2_prob: 0.10                 # of the retries: a second wrong viewpoint before the correction
+head_jitter_deg: {pan: [-4, 4], tilt: [-4, 4]}
+prompts: ['pick up the {obj}', 'grab the {obj}', 'pick the {obj}', 'take the {obj}', 'get the {obj}',
+          'lift the {obj}', 'grasp the {obj}', 'pick up the {obj} from the table', 'can you pick up the {obj}',
+          'please grab the {obj}']        # v3 grasps and lifts: pick phrasings only
+human:                            # expert_pick_approach.run_episode
+  speed: [0.7, 1.3]               # arm speed scale
+  hesitate_prob: 0.3              # stop at the via point for a moment
+  hesitate_s: [0.2, 0.7]
+  settle_s: [0.8, 1.2]            # hold the lifted object still at the end (the policy must learn to stop)
+  look_s: [0.3, 0.6]              # a short look at the view before going down to grasp
+  noise_prob: 0.3                 # smooth noise on the executed motion, recorded action = clean target (DART)
+  noise_arm_deg: [0.5, 1.5]
+  noise_lift_m: [0.002, 0.006]
+  noise_base_m: [0.003, 0.01]
+  noise_tau_s: [1.0, 2.0]          # slow drift, not shaking
+  start_arm_deg: 3.0              # the arm starts up to +-4 deg per joint off the ready pose
+appearance:                       # pick_scene.apply_appearance (the camera model adds AE / AWB / JPEG on top)
+  obj_rgb: 0.15
+  furniture_rgb: 0.08
+  light_scale: [0.75, 1.2]
+  light_tint: 0.06

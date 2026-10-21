@@ -1,0 +1,11 @@
+# align_shoes v2 demo (2026-10-21): a pair of hollow shoes on the living-room floor, apart and a little rotated.
+# The robot works from the ENV spot 'shoe area@living room' (0.0, 0.3, facing +y) and takes them to 'entrance'.
+objects:
+- name: left shoe
+  ycb: h01_shoe_left
+  at: [-0.13, 0.80]
+  yaw_deg: 90
+- name: right shoe
+  ycb: h02_shoe_right
+  at: [0.12, 0.74]
+  yaw_deg: 78

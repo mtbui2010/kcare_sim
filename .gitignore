@@ -12,7 +12,10 @@ sim/kcare_stack/
 sim/mjcf/_*.xml
 sim/mjcf/house.xml
 sim/mjcf/scene_*.xml
-sim/assets/ycb/
+sim/assets/ycb/*
+# hollow sim shoes (align_shoes): primitives in props.json, no downloaded model
+!sim/assets/ycb/h01_shoe_left/
+!sim/assets/ycb/h02_shoe_right/
 sim/assets/real_home/home_tour.mp4
 sim/docker-compose.yml.bak
 **/__pycache__/

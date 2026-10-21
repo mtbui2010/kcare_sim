@@ -768,12 +768,13 @@ def objects_xml(spots):
     for ob in scene_objects():
         name, ycb = ob['name'], ob['ycb']
         obj = f'{SIM}/assets/ycb/{ycb}/google_16k/textured.obj'
-        if not os.path.exists(obj):
+        parts = _obj_props(ycb).get('parts')            # primitive-built object (hollow shoe): boxes, no mesh
+        if not parts and not os.path.exists(obj):
             print(f'[house_scene] skipped {name}: no YCB model {ycb}'); continue
         quat = quat_z(math.radians(ob.get('yaw_deg', 0.0)))
         if 'at' in ob:                                         # a point, or a saved live pose [x, y, z] (+ quat)
             p = ob['at']
-            z = p[2] if len(p) > 2 else _surface_at(spots, p[0], p[1]) - mesh_min_z(obj) + 0.002
+            z = p[2] if len(p) > 2 else _surface_at(spots, p[0], p[1]) - (0.0 if parts else mesh_min_z(obj)) + 0.002
             p = np.array(p[:2], float)
             if ob.get('quat'):
                 quat = ' '.join(f'{v:.6f}' for v in ob['quat'])
@@ -789,8 +790,20 @@ def objects_xml(spots):
             inward = -np.array([math.cos(fy), math.sin(fy)])       # from the front edge into the surface
             u, w = ob.get('offset', [0.0, 0.0])
             p = np.array([cx, cy]) + along * u + inward * w
-            z = sp['height'] - mesh_min_z(obj) + 0.002
+            z = sp['height'] - (0.0 if parts else mesh_min_z(obj)) + 0.002
         tag = re.sub(r'[^a-z0-9]', '_', name)
+        if parts:                                       # one body, a box geom per part; origin = bottom of the object
+            dens = _obj_props(ycb).get('density', 400)
+            geoms = ''.join(f'<geom name="obj_{tag}{"" if k == 0 else f"_p{k}"}" type="box" size="{" ".join(f"{v:.4f}" for v in pt["size"])}" '
+                            f'pos="{" ".join(f"{v:.4f}" for v in pt["pos"])}" rgba="{" ".join(str(v) for v in pt.get("rgba", [0.5, 0.5, 0.5, 1]))}" '
+                            f'density="{dens}" friction="1.2 0.01 0.001" condim="4"/>' for k, pt in enumerate(parts))
+            bodies.append(f'<body name="obj_{tag}" pos="{p[0]:.4f} {p[1]:.4f} {z:.4f}" quat="{quat}">'
+                          f'<freejoint name="obj_{tag}_free"/>{geoms}</body>')
+            placed[name] = dict(ycb=ycb, on=on, body=f'obj_{tag}', pos=[round(float(v), 3) for v in (p[0], p[1], z)],
+                                spec={k: ob[k] for k in ('surface', 'offset', 'yaw_deg') if k in ob} if on else None)
+            if on and 'surface' not in placed[name]['spec']:
+                placed[name]['spec']['surface'] = on
+            continue
         assets.append(f'<mesh name="m_{tag}" file="{YCB}/{ycb}/google_16k/textured.obj"/>'
                       f'<texture name="t_{tag}" type="2d" file="{YCB}/{ycb}/google_16k/texture_map.png"/>'
                       f'<material name="mt_{tag}" texture="t_{tag}"{_obj_rgba(ycb)}/>')
